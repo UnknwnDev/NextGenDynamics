@@ -82,8 +82,8 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
 
         # Observation encoder
         self.obs_encoder = nn.Sequential(
-            nn.Linear(obs_dim, 256),
-            nn.LayerNorm(256),
+            nn.Linear(obs_dim, 128),
+            nn.LayerNorm(128),
             nn.ReLU(),
         )
 
@@ -100,7 +100,7 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
             nn.ReLU(),
             nn.Flatten(),  # 32 * 2 * 2 = 128
-            nn.Linear(128, 128),
+            nn.Linear(128, 64),
             nn.ReLU(),
         )
 
@@ -114,10 +114,10 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 8 -> 4
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # 4 -> 2
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
             nn.ReLU(),
-            nn.Flatten(),  # 64 * 2 * 2 = 256
-            nn.Linear(256, 128),
+            nn.Flatten(),  # 32 * 2 * 2 = 128
+            nn.Linear(128, 64),
             nn.ReLU(),
         )
 
@@ -131,19 +131,19 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 5 -> 3
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # 3 -> 2
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 3 -> 2
             nn.ReLU(),
-            nn.Flatten(),  # 64 * 2 * 2 = 256
-            nn.Linear(256, 128),
+            nn.Flatten(),  # 32 * 2 * 2 = 128
+            nn.Linear(128, 64),
             nn.ReLU(),
         )
 
-        self.num_layers = 1
+        self.num_layers = 2
         self.hidden_size = 512
         self.sequence_length = 32
 
         self.gru = nn.GRU(
-            input_size=640,  # 256 (obs) + 128 (height) + 128 (bev) + 128 (nav)
+            input_size=320,  # 128 (obs) + 64 (height) + 64 (bev) + 64 (nav)
             hidden_size=self.hidden_size,
             num_layers=self.num_layers,
             batch_first=True,

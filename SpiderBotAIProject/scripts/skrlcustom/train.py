@@ -325,7 +325,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env_cfg.log_dir = log_dir
     env_cfg.cameras = args_cli.enable_cameras
-    from SpiderBotAIProject.tasks.manager_based.spiderbot_ai.terrain_gen_usd import ensure_custom_terrain_usd
+    from SpiderBotAIProject.tasks.manager_based.spiderbot_ai.custom_terrain_gen import ensure_custom_terrain_usd
 
     # Ensure the terrain USD exists before env creation.
     if args_cli.distributed:

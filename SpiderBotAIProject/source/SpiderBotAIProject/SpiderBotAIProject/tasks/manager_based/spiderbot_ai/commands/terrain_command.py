@@ -15,9 +15,9 @@ from pxr import Usd, UsdGeom
 from isaaclab.managers import CommandTerm
 from isaaclab.managers import CommandTermCfg
 
-from ..terrain_gen_usd.custom_terrain_config import CustomTerrainCfg
-from ..terrain_gen_usd.spawnpoint_sampler import spawn_point_sampler
-from ..terrain_gen.heightmap_utils import sample_height_torch
+from ..custom_terrain_gen.custom_terrain_config import CustomTerrainCfg
+from ..custom_terrain_gen.height_sampling import sample_height_torch
+from ..custom_terrain_gen.spawnpoint_sampler import spawn_point_sampler
 
 
 class TerrainCommandTerm(CommandTerm):

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from .custom_terrain_config import CustomTerrainCfg, Obstacle, ObstacleType
+from .custom_terrain_config import CustomTerrainCfg, Obstacle, ObstacleType, TerracedZone
 from .custom_terrain_generator import CustomTerrainGenerator
 from .ensure import ensure_custom_terrain_usd
 
@@ -12,6 +12,7 @@ __all__ = [
     "CustomTerrainGenerator",
     "Obstacle",
     "ObstacleType",
+    "TerracedZone",
     "ensure_custom_terrain_usd",
 ]
 

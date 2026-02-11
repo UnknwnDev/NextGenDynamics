@@ -10,10 +10,11 @@ from pathlib import Path
 import numpy as np
 
 from .custom_terrain_config import CustomTerrainCfg
-from .height_map_generator import generate_height_map
+from .height_map_generator import generate_hills, generate_roughness
 from .height_map_to_usd import save_height_map_to_usd
 from .obstacles import mesh_placer
 from .spawnpoint_sampler import spawn_point_sampler
+from .terracing import apply_terracing
 
 
 class CustomTerrainGenerator:
@@ -26,7 +27,11 @@ class CustomTerrainGenerator:
         self.spawn_points: np.ndarray | None = None
 
     def initialize(self, *, export_usd: bool = True, force_export: bool = False) -> Path:
-        self.height_map = generate_height_map(self.cfg)
+        # 1. Hills only  2. Terrace  3. Roughness on top
+        self.height_map = generate_hills(self.cfg)
+        apply_terracing(self.height_map, self.cfg)
+        self.height_map += generate_roughness(self.cfg)
+
         self.obstacle_placement = mesh_placer(self.cfg, self.height_map)
         self.spawn_points = spawn_point_sampler(self.height_map, self.obstacle_placement, self.cfg)
 

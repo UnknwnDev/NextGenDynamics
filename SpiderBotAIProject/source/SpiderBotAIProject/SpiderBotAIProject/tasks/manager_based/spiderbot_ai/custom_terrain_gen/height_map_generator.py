@@ -10,11 +10,8 @@ import numpy as np
 from .custom_terrain_config import CustomTerrainCfg
 import opensimplex
 
-def generate_height_map(cfg: CustomTerrainCfg) -> np.ndarray:
-    """Generate a deterministic height-map using OpenSimplex-based fractal noise."""
-
-    rng = np.random.default_rng(cfg.seed)
-    rough = rng.random(cfg.grid_size, dtype=np.float32) * float(cfg.roughness)
+def generate_hills(cfg: CustomTerrainCfg) -> np.ndarray:
+    """Generate the hill layer using OpenSimplex-based fractal noise (no roughness)."""
 
     opensimplex.seed(int(cfg.seed))
     hills = np.zeros(cfg.grid_size, dtype=np.float32)
@@ -34,5 +31,18 @@ def generate_height_map(cfg: CustomTerrainCfg) -> np.ndarray:
         amplitude *= float(cfg.hill_noise_persistence)
 
     hills *= float(cfg.hill_height)
-    return rough + hills
+    return hills
+
+
+def generate_roughness(cfg: CustomTerrainCfg) -> np.ndarray:
+    """Generate a small random roughness layer."""
+
+    rng = np.random.default_rng(cfg.seed)
+    return rng.random(cfg.grid_size, dtype=np.float32) * float(cfg.roughness)
+
+
+def generate_height_map(cfg: CustomTerrainCfg) -> np.ndarray:
+    """Generate a deterministic height-map using OpenSimplex-based fractal noise."""
+
+    return generate_hills(cfg) + generate_roughness(cfg)
 

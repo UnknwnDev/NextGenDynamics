@@ -27,6 +27,20 @@ class Obstacle:
 
 
 @dataclass
+class TerracedZone:
+    """Define a rectangular region whose heights are quantized into discrete steps."""
+
+    # Centre of the zone in world coordinates (metres).
+    center: tuple[float, float] = (0.0, 0.0)
+    # Zone extents (along heading, perpendicular) in metres.
+    size: tuple[float, float] = (20.0, 20.0)
+    # Counter-clockwise rotation in degrees (0 = +X axis).
+    heading_deg: float = 0.0
+    # Height quantisation interval (metres) – the "ledge" height.
+    step_height: float = 0.15
+
+
+@dataclass
 class CustomTerrainCfg:
     """Configuration for custom terrain generation.
 
@@ -45,13 +59,20 @@ class CustomTerrainCfg:
     # Height-map synthesis parameters.
     roughness: float = 0.05
     hill_scale: float = 768.0
-    hill_height: float = 8.0
+    hill_height: float = 2.0 # 8.0
     hill_noise_lacunarity: float = 2.5
     hill_noise_persistence: float = 0.5
     hill_noise_octaves: int = 32
 
     # Obstacles (optional).
     obstacles: tuple[Obstacle, ...] | None = None
+
+    # Terraced zones (optional, manual placement).
+    terraced_zones: tuple[TerracedZone, ...] | None = None
+    # Random terraced zone generation.
+    random_terraced_count: int = 0
+    random_terraced_size_range: tuple[float, float] = (10.0, 30.0)
+    random_terraced_step_height_range: tuple[float, float] = (0.10, 0.30)
 
     # Spawn sampling.
     num_points: int = 1024

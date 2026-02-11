@@ -141,7 +141,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
 
     # create isaac environment
     env_cfg.log_dir = log_dir
-    from SpiderBotAIProject.tasks.manager_based.spiderbot_ai.terrain_gen_usd import ensure_custom_terrain_usd
+    from SpiderBotAIProject.tasks.manager_based.spiderbot_ai.custom_terrain_gen import ensure_custom_terrain_usd
 
     ensure_custom_terrain_usd(
         size_x=float(env_cfg.height_map_size_x),
