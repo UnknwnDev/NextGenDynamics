@@ -1,5 +1,6 @@
 services:
   train:
+    shm_size: "2g"
     environment:
       # --- NCCL transport ---
       - NCCL_P2P_DISABLE=${NCCL_P2P_DISABLE:-1}
