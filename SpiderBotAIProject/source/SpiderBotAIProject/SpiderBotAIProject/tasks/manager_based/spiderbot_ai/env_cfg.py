@@ -246,3 +246,12 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
         self.decimation = 2
         self.sim.dt = 1 / 120
         self.sim.render_interval = self.decimation
+
+        # PhysX GPU buffer capacities (prevent silent stalls with many envs)
+        self.sim.physx.gpu_found_lost_pairs_capacity = 2**23
+        self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 2**25
+        self.sim.physx.gpu_total_aggregate_pairs_capacity = 2**21
+        self.sim.physx.gpu_max_rigid_contact_count = 2**23
+        self.sim.physx.gpu_max_rigid_patch_count = 2**21
+        self.sim.physx.gpu_heap_capacity = 2**26
+        self.sim.physx.gpu_temp_buffer_capacity = 2**24
