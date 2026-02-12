@@ -126,7 +126,8 @@ def save_height_map_to_usd(
     mesh_prim.GetDisplayColorAttr().Set([Gf.Vec3f(0.05, 0.06, 0.025)])
 
     _spawn_obstacles(stage, cfg, obstacle_placement)
-    _spawn_spawn_points(stage, spawn_points)
+    if cfg.include_spawn_debug_points:
+        _spawn_spawn_points(stage, spawn_points)
 
     stage.GetRootLayer().Save()
     return usd_path

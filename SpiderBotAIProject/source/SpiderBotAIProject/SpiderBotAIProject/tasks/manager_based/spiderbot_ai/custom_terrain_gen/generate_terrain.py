@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .custom_terrain_config import CustomTerrainCfg, TerracedZone
+from .custom_terrain_config import CustomTerrainCfg
 from .custom_terrain_generator import CustomTerrainGenerator
 
 
+
 def main() -> None:
-    cfg = CustomTerrainCfg()
+    cfg = CustomTerrainCfg(include_spawn_debug_points=True)
 
     generator = CustomTerrainGenerator(cfg)
     path = generator.initialize(export_usd=True, force_export=True)

@@ -83,6 +83,8 @@ class CustomTerrainCfg:
     flatness_threshold: float = 0.5
     max_attempts: int = 1024
     margin: float = 32.0
+    # Include debug visualization points in exported USD.
+    include_spawn_debug_points: bool = False
 
     def __post_init__(self):
         self.grid_size = (
@@ -97,4 +99,3 @@ class CustomTerrainCfg:
         d.pop("grid_size", None)
         raw = json.dumps(d, sort_keys=True, default=str)
         return hashlib.sha256(raw.encode()).hexdigest()
-

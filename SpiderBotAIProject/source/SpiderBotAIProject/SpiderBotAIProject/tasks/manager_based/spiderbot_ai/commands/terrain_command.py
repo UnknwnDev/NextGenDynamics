@@ -45,7 +45,7 @@ class TerrainCommandTerm(CommandTerm):
             raise RuntimeError(f"Terrain USD is missing prim '/World/terrain': {usd_path}")
 
         points = mesh.GetPointsAttr().Get()
-        points_np = np.asarray(points, dtype=np.float32)
+        points_np = np.array(points, dtype=np.float32, copy=True)
         rows, cols = terrain_cfg.grid_size
         if points_np.shape[0] != rows * cols:
             raise RuntimeError(
@@ -64,7 +64,7 @@ class TerrainCommandTerm(CommandTerm):
         spawn_prim = UsdGeom.Points.Get(stage, "/World/debug/spawn_points")
         if spawn_prim is not None and spawn_prim.GetPrim().IsValid():
             spawn_points = spawn_prim.GetPointsAttr().Get()
-            spawn_points_np = np.asarray(spawn_points, dtype=np.float32)
+            spawn_points_np = np.array(spawn_points, dtype=np.float32, copy=True)
 
         if spawn_points_np is None or spawn_points_np.size == 0:
             spawn_points_np = spawn_point_sampler(height_map_np, obstacle_placement=None, cfg=terrain_cfg)

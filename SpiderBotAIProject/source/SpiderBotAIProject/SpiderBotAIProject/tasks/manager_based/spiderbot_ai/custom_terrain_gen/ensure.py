@@ -5,7 +5,10 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 from ..paths import CUSTOM_TERRAIN_USD_PATH
 from .custom_terrain_config import CustomTerrainCfg
@@ -39,7 +42,9 @@ def ensure_custom_terrain_usd(
         if hash_path.read_text().strip() == current_hash:
             return usd_path
 
+    log.info("Generating custom terrain USD ...")
     generator = CustomTerrainGenerator(cfg)
     result = generator.initialize(export_usd=True, force_export=True)
     hash_path.write_text(current_hash)
+    log.info("Custom terrain USD saved to: %s", result)
     return result
