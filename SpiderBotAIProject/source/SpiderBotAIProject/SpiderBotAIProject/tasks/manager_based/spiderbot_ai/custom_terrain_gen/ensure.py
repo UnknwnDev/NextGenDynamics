@@ -20,10 +20,12 @@ def ensure_custom_terrain_usd(
     seed: int,
     force: bool = False,
 ) -> Path:
-    """Ensure the terrain USD exists at the canonical path."""
+    """Ensure the terrain USD exists at the canonical path.
+
+    Regenerates when the config hash changes, even if the USD file already exists.
+    """
     usd_path = Path(CUSTOM_TERRAIN_USD_PATH)
-    if usd_path.exists() and not force:
-        return usd_path
+    hash_path = usd_path.with_suffix(".hash")
 
     cfg = CustomTerrainCfg(
         size=(float(size_x), float(size_y)),
@@ -31,5 +33,13 @@ def ensure_custom_terrain_usd(
         seed=int(seed),
         usd_path=CUSTOM_TERRAIN_USD_PATH,
     )
+    current_hash = cfg.config_hash()
+
+    if not force and usd_path.exists() and hash_path.exists():
+        if hash_path.read_text().strip() == current_hash:
+            return usd_path
+
     generator = CustomTerrainGenerator(cfg)
-    return generator.initialize(export_usd=True, force_export=force)
+    result = generator.initialize(export_usd=True, force_export=True)
+    hash_path.write_text(current_hash)
+    return result

@@ -34,6 +34,9 @@ docker/.container.cfg
 # used to configure VS Code settings
 !.vscode
 
+# Generated terrain cache
+**/*.hash
+
 # Outputs
 **/output/*
 **/outputs/*

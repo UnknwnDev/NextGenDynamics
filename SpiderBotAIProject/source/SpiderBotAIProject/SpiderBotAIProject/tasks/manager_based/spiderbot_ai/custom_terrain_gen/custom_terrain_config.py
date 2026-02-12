@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,7 +62,7 @@ class CustomTerrainCfg:
     # Height-map synthesis parameters.
     roughness: float = 0.05
     hill_scale: float = 768.0
-    hill_height: float = 2.0 # 8.0
+    hill_height: float = 4.0 # 8.0
     hill_noise_lacunarity: float = 2.5
     hill_noise_persistence: float = 0.5
     hill_noise_octaves: int = 32
@@ -70,9 +73,9 @@ class CustomTerrainCfg:
     # Terraced zones (optional, manual placement).
     terraced_zones: tuple[TerracedZone, ...] | None = None
     # Random terraced zone generation.
-    random_terraced_count: int = 0
+    random_terraced_count: int = 10
     random_terraced_size_range: tuple[float, float] = (10.0, 30.0)
-    random_terraced_step_height_range: tuple[float, float] = (0.10, 0.30)
+    random_terraced_step_height_range: tuple[float, float] = (0.02, 0.10)
 
     # Spawn sampling.
     num_points: int = 1024
@@ -86,4 +89,12 @@ class CustomTerrainCfg:
             int(self.size[1] / self.meter_per_grid),
             int(self.size[0] / self.meter_per_grid),
         )
+
+    def config_hash(self) -> str:
+        """Return a SHA-256 hex digest of all generation-relevant parameters."""
+        d = dataclasses.asdict(self)
+        d.pop("usd_path", None)
+        d.pop("grid_size", None)
+        raw = json.dumps(d, sort_keys=True, default=str)
+        return hashlib.sha256(raw.encode()).hexdigest()
 
