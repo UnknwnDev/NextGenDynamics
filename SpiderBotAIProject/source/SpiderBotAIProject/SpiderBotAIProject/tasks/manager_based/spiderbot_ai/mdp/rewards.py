@@ -3,148 +3,188 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Reward functions for SpiderBotAIProject.
+
+Each function computes its value inline from sensors/robot data.
+No ensure_updated() or FeatureCacheCommandTerm dependency.
+"""
+
 from __future__ import annotations
 
 import torch
 
+import isaaclab.utils.math as math_utils
+
 
 def life_time_reward(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.life_time * env.step_dt
+    # life_time was: accumulator += step_dt each step = episode_length_buf * step_dt
+    return env.episode_length_buf.float() * env.step_dt * env.step_dt
 
 
 def progress_reward(env) -> torch.Tensor:
     mode_term = env.command_manager.get_term("mode")
-    mode_term.ensure_updated()
+    waypoint = env.command_manager.get_term("waypoint")
+    robot = env.scene.articulations["robot"]
+
     waypoint_mask = mode_term.command[:, 0]
 
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.progress_metric * waypoint_mask * env.step_dt
+    target_distance = torch.linalg.norm(waypoint.desired_pos - robot.data.root_pos_w, dim=1)
+    buffer = waypoint.get_distance_buffer()
+    sum_valid = torch.nansum(buffer, dim=1)
+    count_valid = torch.clamp(torch.sum(~torch.isnan(buffer), dim=1), min=1.0)
+    previous_buffered_distance = sum_valid / count_valid
+
+    difference = (previous_buffered_distance - target_distance) * (1 + 0.5 * (count_valid - 1))
+    progress = torch.sign(difference) * torch.pow(torch.abs(difference), float(env.cfg.progress_pow))
+    progress *= (waypoint.targets_reached * 0.5) + 1.0
+
+    return progress * waypoint_mask * env.step_dt
 
 
 def velocity_alignment_reward(env) -> torch.Tensor:
     mode_term = env.command_manager.get_term("mode")
-    mode_term.ensure_updated()
+    waypoint = env.command_manager.get_term("waypoint")
+    robot = env.scene.articulations["robot"]
+
     waypoint_mask = mode_term.command[:, 0]
 
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.velocity_alignment * waypoint_mask * env.step_dt
+    relative_target_pos_w = waypoint.desired_pos - robot.data.root_pos_w
+    distance = torch.linalg.norm(relative_target_pos_w, dim=1, keepdim=True)
+    relative_target_pos_b = math_utils.quat_apply_inverse(robot.data.root_quat_w, relative_target_pos_w)
+    target_unit_vector = relative_target_pos_b / (distance + 1e-6)
+    velocity_alignment = torch.nn.functional.cosine_similarity(
+        robot.data.root_lin_vel_w[:, :2], target_unit_vector[:, :2], dim=1
+    )
+
+    return velocity_alignment * waypoint_mask * env.step_dt
 
 
 def reach_target_reward(env) -> torch.Tensor:
     mode_term = env.command_manager.get_term("mode")
-    mode_term.ensure_updated()
-    waypoint_mask = mode_term.command[:, 0]
-
     waypoint = env.command_manager.get_term("waypoint")
-    waypoint.ensure_updated()
+
+    waypoint_mask = mode_term.command[:, 0]
     reward = (0.5 + waypoint.targets_reached * 0.5) * waypoint.reached_target.to(dtype=waypoint.targets_reached.dtype)
     return reward * waypoint_mask
 
 
 def death_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    died = env.scene.articulations["robot"].data.projected_gravity_b[:, 2] > 0.0
-    on_ground = features.base_contact_time > float(env.cfg.base_on_ground_time)
-    penalty = died.to(torch.float32) + on_ground.to(torch.float32)
-    return penalty
+    robot = env.scene.articulations["robot"]
+    died = robot.data.projected_gravity_b[:, 2] > 0.0
+    on_ground = env._base_contact_time > float(env.cfg.base_on_ground_time)
+    return died.to(torch.float32) + on_ground.to(torch.float32)
 
 
 def feet_ground_time_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.feet_ground_max_time * env.step_dt
+    contact_sensor = env.scene.sensors["contact_sensor"]
+    contact_time = contact_sensor.data.current_contact_time[:, env.robot_idx.contact_sensor_feet_ids]
+    in_contact = (contact_time > 0.0).to(contact_time.dtype)
+    return torch.max(contact_time * in_contact, dim=1).values * env.step_dt
 
 
 def jump_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.jump_penalty * env.step_dt
+    contact_sensor = env.scene.sensors["contact_sensor"]
+    current_air_times = contact_sensor.data.current_air_time[:, env.robot_idx.contact_sensor_feet_ids]
+    air_feet_per_agent = (current_air_times > 0).float().sum(dim=1)
+    total_foot_num = float(len(env.robot_idx.contact_sensor_feet_ids))
+    normalized_air_feet = air_feet_per_agent / total_foot_num
+    normalized_air_feet[normalized_air_feet < 1e-7] = 2.0 / total_foot_num
+    return (normalized_air_feet ** 3) * env.step_dt
 
 
 def body_angular_velocity_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.body_angular_velocity * env.step_dt
+    robot = env.scene.articulations["robot"]
+    return torch.linalg.norm(
+        robot.data.body_link_ang_vel_w[:, env.robot_idx.body_ids, :], dim=(-1, 1)
+    ) * env.step_dt
 
 
 def speed_reward(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.horizontal_speed * env.step_dt
+    robot = env.scene.articulations["robot"]
+    up_dir = torch.tensor([0.0, 0.0, 1.0], device=env.device).view(1, 1, 3)
+    v_w = robot.data.body_link_lin_vel_w[:, env.robot_idx.body_ids]
+    dot = (v_w * up_dir).sum(dim=-1, keepdim=True)
+    v_horizontal = v_w - dot * up_dir
+    return v_horizontal.norm(dim=-1).squeeze(1) * env.step_dt
 
 
 def body_vertical_acceleration_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.body_vertical_acceleration * env.step_dt
+    robot = env.scene.articulations["robot"]
+    body_vertical_acc = torch.mean(robot.data.body_com_lin_acc_w[:, env.robot_idx.body_ids, 2], dim=1)
+    return torch.pow(body_vertical_acc, 2.0).clip(max=20.0) * env.step_dt
 
 
 def dof_torques_l2(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.joint_torques_l2 * env.step_dt
+    robot = env.scene.articulations["robot"]
+    joint_num = float(robot.data.joint_acc.shape[1])
+    return torch.sum(torch.square(robot.data.applied_torque / joint_num), dim=1) * env.step_dt
 
 
 def dof_acc_l2(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.joint_accel_l2 * env.step_dt
+    robot = env.scene.articulations["robot"]
+    joint_num = float(robot.data.joint_acc.shape[1])
+    return torch.sum(torch.square(robot.data.joint_acc / joint_num), dim=1) * env.step_dt
 
 
 def action_rate_l2(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.action_rate_l2 * env.step_dt
+    delta_action = env.action_manager.action - env.action_manager.prev_action
+    return torch.sum(torch.square(delta_action), dim=1) * env.step_dt
 
 
 def feet_air_time_reward(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.feet_air_time * env.step_dt
+    contact_sensor = env.scene.sensors["contact_sensor"]
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, env.robot_idx.contact_sensor_feet_ids]
+    last_air_time = contact_sensor.data.last_air_time[:, env.robot_idx.contact_sensor_feet_ids]
+    return torch.sum((last_air_time - 0.5) * first_contact, dim=1) * env.step_dt
 
 
 def undesired_contacts_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.undesired_contacts * env.step_dt
+    return torch.sum(env._is_contact[:, env.robot_idx.undesired_contact_body_ids], dim=1) * env.step_dt
 
 
 def feet_contact_force_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.feet_contact_force * env.step_dt
+    contact_sensor = env.scene.sensors["contact_sensor"]
+    feet_forces = contact_sensor.data.net_forces_w[:, env.robot_idx.contact_sensor_feet_ids]
+    return (torch.mean(torch.norm(feet_forces, dim=-1), dim=1) ** 2.0) * env.step_dt
 
 
 def flat_orientation_l2(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.flat_orientation_l2 * env.step_dt
+    robot = env.scene.articulations["robot"]
+    return torch.sum(torch.square(robot.data.projected_gravity_b[:, :2]), dim=1) * env.step_dt
 
 
 def wall_proximity_penalty(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.wall_proximity_score * env.step_dt
+    lidar_sensor = env.scene.sensors["lidar_sensor"]
+
+    lidar_hits_w = lidar_sensor.data.ray_hits_w
+    lidar_hits_w = torch.nan_to_num(lidar_hits_w, nan=0.0, posinf=1000.0, neginf=-1000.0)
+    rel_hits_w = lidar_hits_w - lidar_sensor.data.pos_w.unsqueeze(1)
+
+    batch_size, num_points, _ = rel_hits_w.shape
+    rel_hits_w_flat = rel_hits_w.view(-1, 3)
+    quat_w_expanded = lidar_sensor.data.quat_w.unsqueeze(1).expand(-1, num_points, -1).reshape(-1, 4)
+
+    rel_hits_b_flat = math_utils.quat_apply_inverse(quat_w_expanded, rel_hits_w_flat)
+    rel_hits_b = rel_hits_b_flat.view(batch_size, num_points, 3)
+
+    dists = torch.norm(rel_hits_b, dim=-1)
+    is_close = dists < float(env.cfg.wall_close_threshold)
+    is_obstacle = rel_hits_b[:, :, 2] > float(env.cfg.wall_height_threshold)
+    valid_wall_hits = is_close & is_obstacle
+
+    wall_score = torch.sum((float(env.cfg.wall_close_threshold) - dists) * valid_wall_hits.float(), dim=1)
+    wall_score = wall_score / float(num_points)
+    return (wall_score * wall_score * torch.sign(wall_score)) * env.step_dt
 
 
 def patrol_exploration_reward(env) -> torch.Tensor:
     mode_term = env.command_manager.get_term("mode")
-    mode_term.ensure_updated()
     patrol_mask = mode_term.command[:, 1]
-
-    map_term = env.command_manager.get_term("map")
-    map_term.ensure_updated()
-    return map_term.output.exploration_bonus * patrol_mask * env.step_dt
+    return env._map_output.exploration_bonus * patrol_mask * env.step_dt
 
 
 def patrol_boundary_penalty(env) -> torch.Tensor:
     mode_term = env.command_manager.get_term("mode")
-    mode_term.ensure_updated()
     patrol_mask = mode_term.command[:, 1]
 
     robot = env.scene.articulations["robot"]

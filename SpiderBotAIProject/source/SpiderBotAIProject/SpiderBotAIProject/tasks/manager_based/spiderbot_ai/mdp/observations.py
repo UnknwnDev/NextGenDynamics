@@ -22,22 +22,11 @@ def _relative_target_info(robot, target_pos_w: torch.Tensor) -> tuple[torch.Tens
 def policy_observations(env) -> torch.Tensor:
     """Main policy vector observation (concatenated)."""
     robot = env.scene.articulations["robot"]
-
-    robot_cache = env.command_manager.get_term("robot_cache")
     waypoint = env.command_manager.get_term("waypoint")
-    map_term = env.command_manager.get_term("map")
     mode_term = env.command_manager.get_term("mode")
-
-    robot_cache.ensure_updated()
-    waypoint.ensure_updated()
-    map_term.ensure_updated()
-    mode_term.ensure_updated()
 
     target_unit_vector, target_distance = _relative_target_info(robot, waypoint.desired_pos)
     next_target_unit_vector, next_target_distance = _relative_target_info(robot, waypoint.next_desired_pos)
-
-    can_see = map_term.can_see
-    one_hot_state = mode_term.command
 
     obs = torch.cat(
         [
@@ -48,13 +37,13 @@ def policy_observations(env) -> torch.Tensor:
             target_distance,
             next_target_unit_vector,
             next_target_distance,
-            robot_cache.is_contact,
-            robot.data.joint_pos[:, robot_cache.dof_idx] - robot.data.default_joint_pos[:, robot_cache.dof_idx],
-            robot.data.joint_vel[:, robot_cache.dof_idx],
+            env._is_contact,
+            robot.data.joint_pos[:, env.robot_idx.dof_idx] - robot.data.default_joint_pos[:, env.robot_idx.dof_idx],
+            robot.data.joint_vel[:, env.robot_idx.dof_idx],
             env.action_manager.action,
-            map_term.output.far_staleness,
-            can_see,
-            one_hot_state,
+            env._map_output.far_staleness,
+            torch.zeros(env.num_envs, 1, device=env.device),  # was: can_see (always zeros, preserved for model compat)
+            mode_term.command,
         ],
         dim=-1,
     )
@@ -62,15 +51,12 @@ def policy_observations(env) -> torch.Tensor:
 
 
 def height_data(env) -> torch.Tensor:
-    env.command_manager.get_term("map").ensure_updated()
-    return env.command_manager.get_term("map").output.height_data
+    return env._map_output.height_data
 
 
 def bev_data(env) -> torch.Tensor:
-    env.command_manager.get_term("map").ensure_updated()
-    return env.command_manager.get_term("map").output.bev_data
+    return env._map_output.bev_data
 
 
 def nav_data(env) -> torch.Tensor:
-    env.command_manager.get_term("map").ensure_updated()
-    return env.command_manager.get_term("map").output.nav_data
+    return env._map_output.nav_data

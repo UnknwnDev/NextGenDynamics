@@ -10,6 +10,7 @@ import isaaclab.terrains as terrain_gen
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import CommandTermCfg as CmdTerm
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
@@ -19,12 +20,7 @@ from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 from isaaclab.utils import configclass
 
 from . import mdp
-from .commands.feature_cache_command import FeatureCacheCommandTerm
-from .commands.map_command import MapCommandTerm
 from .commands.mode_command import ModeCommandTerm
-from .commands.robot_cache_command import RobotCacheCommandTerm
-from .commands.spawn_command import SpawnCommandTerm
-from .commands.terrain_command import TerrainCommandTerm
 from .commands.waypoint_command import WaypointCommandTerm
 from .environment.spider_robot import SPIDER_ACTUATOR_CFG, SPIDER_CFG
 from .paths import CUSTOM_TERRAIN_USD_PATH
@@ -105,15 +101,10 @@ class ActionsCfg:
 
 @configclass
 class CommandsCfg:
-    """Stateful components (owned by CommandTerms)."""
+    """Only legitimate commands (waypoint targets + mode state)."""
 
-    terrain = CmdTerm(class_type=TerrainCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
-    spawn = CmdTerm(class_type=SpawnCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
-    robot_cache = CmdTerm(class_type=RobotCacheCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
-    map = CmdTerm(class_type=MapCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
     waypoint = CmdTerm(class_type=WaypointCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
     mode = CmdTerm(class_type=ModeCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
-    features = CmdTerm(class_type=FeatureCacheCommandTerm, resampling_time_range=(1.0e9, 1.0e9))
 
 
 @configclass
@@ -134,10 +125,7 @@ class ObservationsCfg:
 
 @configclass
 class RewardsCfg:
-    """Reward terms (thin wrappers over command-owned buffers)."""
-
-    # NOTE: We keep rewards unscaled in mdp functions and apply scaling here via manager weights.
-    #       This keeps the RewardManager table meaningful and avoids hiding scales inside env.cfg.* fields.
+    """Reward terms (each computes inline from sensors/robot data)."""
     life_time = RewTerm(func=mdp.life_time_reward, weight=0.005)
     progress = RewTerm(func=mdp.progress_reward, weight=5.0e4)
     velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=2.5e2)
@@ -172,10 +160,9 @@ class TerminationsCfg:
 
 @configclass
 class EventCfg:
-    """No-op events.
+    """Robot spawn on reset."""
 
-    All reset/randomization logic is intentionally implemented as CommandTerms.
-    """
+    spawn_robot = EventTerm(func=mdp.spawn_robot, mode="reset")
 
 
 ##
