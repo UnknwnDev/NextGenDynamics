@@ -147,7 +147,7 @@ class RewardsCfg:
     feet_ground_time = RewTerm(func=mdp.feet_ground_time_penalty, weight=-5.0e1)
     jump_penalty = RewTerm(func=mdp.jump_penalty, weight=-2.5e3)
     body_angular_velocity = RewTerm(func=mdp.body_angular_velocity_penalty, weight=-15.0)
-    speed = RewTerm(func=mdp.speed_reward, weight=1.0e3)
+    speed = RewTerm(func=mdp.speed_reward, weight=5.0e2)
     body_vertical_acceleration = RewTerm(func=mdp.body_vertical_acceleration_penalty, weight=-3.0)
     dof_torques = RewTerm(func=mdp.dof_torques_l2, weight=-0.25)
     dof_acc = RewTerm(func=mdp.dof_acc_l2, weight=-2.5e-4)
