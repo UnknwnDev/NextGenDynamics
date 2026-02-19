@@ -9,9 +9,7 @@ import torch
 
 
 def per_target_time_out(env) -> torch.Tensor:
-    waypoint = env.command_manager.get_term("waypoint")
-    waypoint.ensure_updated()
-    return waypoint.per_target_timed_out
+    return env.command_manager.get_term("waypoint").per_target_timed_out
 
 
 def died(env) -> torch.Tensor:
@@ -19,6 +17,4 @@ def died(env) -> torch.Tensor:
 
 
 def on_ground(env) -> torch.Tensor:
-    features = env.command_manager.get_term("features")
-    features.ensure_updated()
-    return features.base_contact_time > float(env.cfg.base_on_ground_time)
+    return env._base_contact_time > float(env.cfg.base_on_ground_time)

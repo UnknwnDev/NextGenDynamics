@@ -177,12 +177,11 @@ class WaypointCommandTerm(CommandTerm):
         self._distance_buffer[env_ids] = torch.nan
 
     def _resample_targets(self, env_ids):
-        spawn_term = self._env.command_manager.get_term("spawn")
         lookback = int(self._env.cfg.distance_lookback)
         index = self._step_counter % lookback
 
         if isinstance(env_ids, slice):
-            anchor = spawn_term.spawn_pos_w
+            anchor = self._env.spawn_pos_w
             self.desired_pos[:] = self._sample_target_positions(anchor)
             self.next_desired_pos[:] = self._sample_target_positions(self.desired_pos)
 
@@ -190,7 +189,7 @@ class WaypointCommandTerm(CommandTerm):
             self._distance_buffer[:, index] = distance
         else:
             env_ids_t = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
-            anchor = spawn_term.spawn_pos_w[env_ids_t]
+            anchor = self._env.spawn_pos_w[env_ids_t]
             self.desired_pos[env_ids_t] = self._sample_target_positions(anchor)
             self.next_desired_pos[env_ids_t] = self._sample_target_positions(self.desired_pos[env_ids_t])
 
@@ -199,5 +198,4 @@ class WaypointCommandTerm(CommandTerm):
 
     def _sample_target_positions(self, anchor_pos_w: torch.Tensor) -> torch.Tensor:
         """Sample obstacle-avoiding 3D target positions around anchors."""
-        terrain_term = self._env.command_manager.get_term("terrain")
-        return terrain_term.sample_target(anchor_pos_w)
+        return self._env.terrain_data.sample_target(anchor_pos_w, self._env.cfg)

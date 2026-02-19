@@ -119,7 +119,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
     env_cfg.sim.use_fabric = not args_cli.disable_fabric
     if args_cli.debug_vis:
-        env_cfg.commands.spawn.debug_vis = True
         env_cfg.commands.waypoint.debug_vis = True
 
     # randomly sample a seed if seed = -1
