@@ -37,8 +37,6 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
         super().__init__(cfg, render_mode=render_mode, **kwargs)
 
     def load_managers(self):
-        super().load_managers()
-
         # Robot body/joint/contact indices (resolved after scene is created)
         self.robot_idx = RobotIndices.from_scene(self.scene, self.cfg)
 
@@ -68,6 +66,9 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             dtype=torch.float32,
         )
         self._base_contact_time = torch.zeros(self.num_envs, device=self.device)
+
+        # Create ObservationManager, TerminationManager, RewardManager etc.
+        super().load_managers()
 
     # ------------------------------------------------------------------
     # step() override — based on IsaacLab 2.3.2 ManagerBasedRLEnv.step()
