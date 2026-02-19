@@ -94,10 +94,13 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.Conv2d(2, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
             nn.ReLU(),
             nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 16 -> 8
+            nn.GroupNorm(2, 8),
             nn.ReLU(),
             nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 8 -> 4
+            nn.GroupNorm(4, 16),
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),  # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
@@ -109,12 +112,16 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.Conv2d(3, 4, kernel_size=3, stride=2, padding=1),  # 64 -> 32
             nn.ReLU(),
             nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 32 -> 16
+            nn.GroupNorm(2, 8),
             nn.ReLU(),
             nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 16 -> 8
+            nn.GroupNorm(4, 16),
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 8 -> 4
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),  # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
@@ -126,19 +133,23 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.Conv2d(1, 4, kernel_size=3, stride=2, padding=1),  # 33 -> 17
             nn.ReLU(),
             nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 17 -> 9
+            nn.GroupNorm(2, 8),
             nn.ReLU(),
             nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 9 -> 5
+            nn.GroupNorm(4, 16),
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 5 -> 3
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 3 -> 2
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),  # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
             nn.ReLU(),
         )
 
-        self.num_layers = 2
+        self.num_layers = 1
         self.hidden_size = 512
         self.sequence_length = 32
 
@@ -153,10 +164,13 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.Linear(self.hidden_size, 256),
             nn.ReLU(),
             nn.Linear(256, 128),
-            nn.Tanh(),
+            nn.Identity()
         )
 
-        self.policy_layer = nn.Linear(128, act_dim)
+        self.policy_layer = nn.Sequential(
+            nn.Linear(128, act_dim),
+            nn.Tanh()
+        )
         self.value_layer = nn.Linear(128, 1)
 
         self.log_std_parameter = nn.Parameter(

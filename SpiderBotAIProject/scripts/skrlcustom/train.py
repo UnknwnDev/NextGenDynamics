@@ -256,7 +256,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         env_cfg.scene.num_envs = num_envs
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
     if args_cli.debug_vis:
-        env_cfg.commands.spawn.debug_vis = True
         env_cfg.commands.waypoint.debug_vis = True
 
     # max iterations for training
