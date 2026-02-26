@@ -134,7 +134,7 @@ def feet_air_time_reward(env) -> torch.Tensor:
     contact_sensor = env.scene.sensors["contact_sensor"]
     first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, env.robot_idx.contact_sensor_feet_ids]
     last_air_time = contact_sensor.data.last_air_time[:, env.robot_idx.contact_sensor_feet_ids]
-    return torch.sum((last_air_time - 0.5) * first_contact, dim=1) * env.step_dt
+    return torch.sum((1.0 - 4.0 * (last_air_time - 0.5) ** 2) * first_contact, dim=1) * env.step_dt
 
 
 def undesired_contacts_penalty(env) -> torch.Tensor:
