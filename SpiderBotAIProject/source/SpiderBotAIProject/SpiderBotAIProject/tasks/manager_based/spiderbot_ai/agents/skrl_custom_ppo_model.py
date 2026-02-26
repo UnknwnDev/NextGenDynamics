@@ -234,7 +234,7 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
 
         if role == "policy":
             net, rnn_dict = self._shared_output
-            mean = torch.tanh(self.policy_layer(net))
+            mean = self.policy_layer(net)
             return mean, self.log_std_parameter, rnn_dict
 
         if role == "value":
