@@ -134,6 +134,15 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
         # compute observations
         self.obs_buf = self.observation_manager.compute(update_history=True)
 
+        # Per-step reward logging (mean across all envs)
+        log = self.extras.get("log")
+        if not isinstance(log, dict):
+            log = {}
+            self.extras["log"] = log
+        rm = self.reward_manager
+        for idx, name in enumerate(rm._term_names):
+            log[f"Step_Reward/{name}"] = rm._step_reward[:, idx].mean()
+
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
 
     # ------------------------------------------------------------------
