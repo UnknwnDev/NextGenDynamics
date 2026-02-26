@@ -50,10 +50,9 @@ def velocity_alignment_reward(env) -> torch.Tensor:
 
     relative_target_pos_w = waypoint.desired_pos - robot.data.root_pos_w
     distance = torch.linalg.norm(relative_target_pos_w, dim=1, keepdim=True)
-    relative_target_pos_b = math_utils.quat_apply_inverse(robot.data.root_quat_w, relative_target_pos_w)
-    target_unit_vector = relative_target_pos_b / (distance + 1e-6)
+    target_unit_vector_w = relative_target_pos_w / (distance + 1e-6)
     velocity_alignment = torch.nn.functional.cosine_similarity(
-        robot.data.root_lin_vel_w[:, :2], target_unit_vector[:, :2], dim=1
+        robot.data.root_lin_vel_w[:, :2], target_unit_vector_w[:, :2], dim=1
     )
 
     return velocity_alignment * waypoint_mask * env.step_dt
