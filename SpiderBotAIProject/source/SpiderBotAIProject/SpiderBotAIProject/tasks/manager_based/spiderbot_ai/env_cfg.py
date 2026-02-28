@@ -135,7 +135,7 @@ class RewardsCfg:
     feet_ground_time = RewTerm(func=mdp.feet_ground_time_penalty, weight=-5.0e1)
     jump_penalty = RewTerm(func=mdp.jump_penalty, weight=-1.0e3)
     body_angular_velocity = RewTerm(func=mdp.body_angular_velocity_penalty, weight=-15.0)
-    speed = RewTerm(func=mdp.speed_reward, weight=2.0e2)
+    speed = RewTerm(func=mdp.speed_reward, weight=2.5e2)
     body_vertical_acceleration = RewTerm(func=mdp.body_vertical_acceleration_penalty, weight=-3.0)
     dof_torques = RewTerm(func=mdp.dof_torques_l2, weight=-0.25)
     dof_acc = RewTerm(func=mdp.dof_acc_l2, weight=-2.5e-4)
@@ -191,7 +191,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     undesired_contact_body_names = "body|leg_upper_.*|leg_middle_.*|leg_lower_.*"
 
     # Commands / reset
-    spawn_z_offset = 10.0
+    spawn_z_offset = 1.0
     spawn_yaw_range = 0.5
 
     # Terrain / sampling (ported)
@@ -201,7 +201,6 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     spawn_padding = 20.0
     target_sample_attempts = 24
     target_obstacle_margin = 0.5
-    spawn_z_offset_small = 1.0
     target_z_offset = 0.25
 
     # Patrol settings

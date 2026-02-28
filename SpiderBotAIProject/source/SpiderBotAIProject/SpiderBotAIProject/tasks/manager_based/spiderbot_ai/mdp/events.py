@@ -31,7 +31,7 @@ def spawn_robot(env: ManagerBasedRLEnv, env_ids: Sequence[int]) -> None:
     spawn_xy = env.terrain_data.sample_spawn(env_origins, patrol_size=float(env.cfg.patrol_size))
 
     # Add Z at terrain height + offset
-    z = env.terrain_data.height_at_xy(spawn_xy) + float(env.cfg.spawn_z_offset_small)
+    z = env.terrain_data.height_at_xy(spawn_xy) + float(env.cfg.spawn_z_offset)
     spawn_pos_w = torch.cat([spawn_xy, z.unsqueeze(1)], dim=1)
 
     # Set robot pose
