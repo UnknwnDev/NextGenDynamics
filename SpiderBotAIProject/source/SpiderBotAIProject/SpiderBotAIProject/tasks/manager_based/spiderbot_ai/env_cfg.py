@@ -183,8 +183,8 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
 
-    # --- Task parameters (ported) ---
-    episode_length_s = 60.0
+    # --- Task parameters ---
+    episode_length_s = 600.0
 
     base_name = "body"
     foot_names = "leg_foot_.*"
@@ -194,7 +194,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     spawn_z_offset = 1.0
     spawn_yaw_range = 0.5
 
-    # Terrain / sampling (ported)
+    # Terrain / sampling
     height_map_size_x = 196.0
     height_map_size_y = 196.0
     height_map_meter_per_grid = 0.15
@@ -215,7 +215,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     point_max_distance = 10.0
     point_min_distance = 5.0
     success_tolerance = 0.5
-    time_out_per_target = 30.0
+    time_out_per_target = 600.0
     time_out_decrease_per_target = 0.075
     min_time_out = 1.0
 
