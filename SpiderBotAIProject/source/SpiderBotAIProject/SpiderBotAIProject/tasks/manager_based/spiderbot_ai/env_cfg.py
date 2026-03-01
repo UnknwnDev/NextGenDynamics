@@ -127,7 +127,7 @@ class ObservationsCfg:
 class RewardsCfg:
     """Reward terms (each computes inline from sensors/robot data)."""
     life_time = RewTerm(func=mdp.life_time_reward, weight=0.005)
-    progress = RewTerm(func=mdp.progress_reward, weight=5.0e4)
+    progress = RewTerm(func=mdp.progress_reward, weight=5.0e5)
     velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=5.0e3)
     reach_target = RewTerm(func=mdp.reach_target_reward, weight=1.0e5)
 
