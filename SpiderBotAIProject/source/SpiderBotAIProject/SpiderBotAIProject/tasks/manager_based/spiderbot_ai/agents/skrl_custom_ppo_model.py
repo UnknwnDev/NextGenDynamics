@@ -150,7 +150,7 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
         )
 
         self.num_layers = 1
-        self.hidden_size = 512
+        self.hidden_size = 256
         self.sequence_length = 32
 
         self.gru = nn.GRU(
