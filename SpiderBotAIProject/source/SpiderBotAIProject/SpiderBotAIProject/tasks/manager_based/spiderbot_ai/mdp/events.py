@@ -54,6 +54,9 @@ def spawn_robot(env: ManagerBasedRLEnv, env_ids: Sequence[int]) -> None:
         None,
         env_ids_t,
     )
+    # Reset PhysX PD controller targets (prevents stale targets from previous episode)
+    robot.set_joint_position_target(robot.data.default_joint_pos[env_ids_t], env_ids=env_ids_t)
+    robot.set_joint_velocity_target(robot.data.default_joint_vel[env_ids_t], env_ids=env_ids_t)
 
     # Store spawn position for WaypointCommandTerm to reference during its reset
     env.spawn_pos_w[env_ids_t] = spawn_pos_w
