@@ -24,7 +24,7 @@ class TerrainData:
     """
 
     def __init__(self, cfg, device: torch.device | str):
-        seed = int(getattr(cfg, "seed", 42) or 42)
+        seed = int(getattr(cfg, "seed", 42))
         terrain_cfg = CustomTerrainCfg(
             size=(float(cfg.height_map_size_x), float(cfg.height_map_size_y)),
             meter_per_grid=float(cfg.height_map_meter_per_grid),
