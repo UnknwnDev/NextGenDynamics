@@ -16,17 +16,28 @@ import torch
 import isaaclab.utils.math as math_utils
 
 
+def _mode_scale(env, reward_name: str) -> torch.Tensor:
+    """Per-env reward scale factor based on current mode.
+
+    Returns (num_envs,) tensor. Falls back to 1.0 if reward_name
+    is not in env.cfg.mode_reward_scales.
+    """
+    mode_term = env.command_manager.get_term("mode")
+    scales_tuple = env.cfg.mode_reward_scales.get(reward_name)
+    if scales_tuple is None:
+        return torch.ones(env.num_envs, device=env.device)
+    scales_tensor = torch.tensor(scales_tuple, device=env.device, dtype=torch.float32)
+    return scales_tensor[mode_term.current_mode]
+
+
 def life_time_reward(env) -> torch.Tensor:
     # life_time was: accumulator += step_dt each step = episode_length_buf * step_dt
     return env.episode_length_buf.float() * env.step_dt * env.step_dt
 
 
 def progress_reward(env) -> torch.Tensor:
-    mode_term = env.command_manager.get_term("mode")
     waypoint = env.command_manager.get_term("waypoint")
     robot = env.scene.articulations["robot"]
-
-    waypoint_mask = mode_term.command[:, 0]
 
     target_distance = torch.linalg.norm(waypoint.desired_pos - robot.data.root_pos_w, dim=1)
     buffer = waypoint.get_distance_buffer()
@@ -38,15 +49,12 @@ def progress_reward(env) -> torch.Tensor:
     progress = torch.sign(difference) * torch.pow(torch.abs(difference), float(env.cfg.progress_pow))
     progress *= (waypoint.targets_reached * 0.5) + 1.0
 
-    return progress * waypoint_mask * env.step_dt
+    return progress * _mode_scale(env, "progress") * env.step_dt
 
 
 def velocity_alignment_reward(env) -> torch.Tensor:
-    mode_term = env.command_manager.get_term("mode")
     waypoint = env.command_manager.get_term("waypoint")
     robot = env.scene.articulations["robot"]
-
-    waypoint_mask = mode_term.command[:, 0]
 
     relative_target_pos_w = waypoint.desired_pos - robot.data.root_pos_w
     distance = torch.linalg.norm(relative_target_pos_w, dim=1, keepdim=True)
@@ -55,16 +63,14 @@ def velocity_alignment_reward(env) -> torch.Tensor:
         robot.data.root_lin_vel_w[:, :2], target_unit_vector_w[:, :2], dim=1
     )
 
-    return velocity_alignment * waypoint_mask * env.step_dt
+    return velocity_alignment * _mode_scale(env, "velocity_alignment") * env.step_dt
 
 
 def reach_target_reward(env) -> torch.Tensor:
-    mode_term = env.command_manager.get_term("mode")
     waypoint = env.command_manager.get_term("waypoint")
 
-    waypoint_mask = mode_term.command[:, 0]
     reward = (0.5 + waypoint.targets_reached * 0.5) * waypoint.reached_target.to(dtype=waypoint.targets_reached.dtype)
-    return reward * waypoint_mask
+    return reward * _mode_scale(env, "reach_target")
 
 
 def death_penalty(env) -> torch.Tensor:
@@ -104,7 +110,7 @@ def speed_reward(env) -> torch.Tensor:
     v_w = robot.data.body_link_lin_vel_w[:, env.robot_idx.body_ids]
     dot = (v_w * up_dir).sum(dim=-1, keepdim=True)
     v_horizontal = v_w - dot * up_dir
-    return v_horizontal.norm(dim=-1).squeeze(1) * env.step_dt
+    return v_horizontal.norm(dim=-1).squeeze(1) * _mode_scale(env, "speed") * env.step_dt
 
 
 def body_vertical_acceleration_penalty(env) -> torch.Tensor:
@@ -177,17 +183,21 @@ def wall_proximity_penalty(env) -> torch.Tensor:
 
 
 def patrol_exploration_reward(env) -> torch.Tensor:
-    mode_term = env.command_manager.get_term("mode")
-    patrol_mask = mode_term.command[:, 1]
-    return env._map_output.exploration_bonus * patrol_mask * env.step_dt
+    return env._map_output.exploration_bonus * _mode_scale(env, "patrol_exploration") * env.step_dt
 
 
 def patrol_boundary_penalty(env) -> torch.Tensor:
-    mode_term = env.command_manager.get_term("mode")
-    patrol_mask = mode_term.command[:, 1]
-
     robot = env.scene.articulations["robot"]
     rel_pos = robot.data.root_pos_w[:, :2] - env.scene.env_origins[:, :2]
     dist_from_center = torch.norm(rel_pos, dim=1)
     outside_patrol = torch.clamp(dist_from_center - (float(env.cfg.patrol_size) / 2), min=0.0)
-    return outside_patrol * patrol_mask * env.step_dt
+    return outside_patrol * _mode_scale(env, "patrol_boundary") * env.step_dt
+
+
+def chase_proximity_reward(env) -> torch.Tensor:
+    """Continuous reward for staying close to the moving target in CHASE mode."""
+    waypoint = env.command_manager.get_term("waypoint")
+    robot = env.scene.articulations["robot"]
+    dist = torch.linalg.norm(waypoint.desired_pos - robot.data.root_pos_w, dim=1)
+    proximity = 1.0 / (dist + 0.5)
+    return proximity * _mode_scale(env, "chase_proximity") * env.step_dt

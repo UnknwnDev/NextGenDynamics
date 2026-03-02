@@ -149,6 +149,8 @@ class RewardsCfg:
     patrol_exploration = RewTerm(func=mdp.patrol_exploration_reward, weight=2.0)
     patrol_boundary = RewTerm(func=mdp.patrol_boundary_penalty, weight=-0.25)
 
+    chase_proximity = RewTerm(func=mdp.chase_proximity_reward, weight=5.0e3)
+
 
 @configclass
 class TerminationsCfg:
@@ -223,6 +225,24 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     progress_pow = 1.3
     wall_close_threshold = 1.5
     wall_height_threshold = -0.2
+
+    # Chase mode settings
+    chase_target_speed = 0.5              # wandering speed (m/s)
+    chase_target_wander_rate = 1.5        # max heading change (rad/s)
+    chase_target_boundary_margin = 3.0    # start steering away from boundary (m)
+    chase_success_tolerance = 1.0
+
+    # Mode-dependent reward scales: reward_name -> (WAYPOINT, PATROL, CHASE)
+    # Rewards not listed default to (1.0, 1.0, 1.0) — always active at full weight.
+    mode_reward_scales: dict = {
+        "progress":           (1.0, 0.0, 1.0),
+        "velocity_alignment": (1.0, 0.0, 1.0),
+        "reach_target":       (1.0, 0.0, 0.5),
+        "patrol_exploration": (0.0, 1.0, 0.0),
+        "patrol_boundary":    (0.0, 1.0, 0.0),
+        "speed":              (1.0, 1.0, 1.5),
+        "chase_proximity":    (0.0, 0.0, 1.0),
+    }
 
     # Sensors / contacts
     contact_threshold = 1.0e-2

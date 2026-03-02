@@ -19,10 +19,13 @@ class ModeCommandTerm(CommandTerm):
     Modes:
         0 = WAYPOINT
         1 = PATROL
+        2 = CHASE
     """
 
     WAYPOINT = 0
     PATROL = 1
+    CHASE = 2
+    NUM_MODES = 3
 
     def __init__(self, cfg: CommandTermCfg, env):
         super().__init__(cfg, env)
@@ -36,8 +39,10 @@ class ModeCommandTerm(CommandTerm):
         self.mode_changed = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.entered_waypoint = torch.zeros_like(self.mode_changed)
         self.exited_waypoint = torch.zeros_like(self.mode_changed)
+        self.entered_chase = torch.zeros_like(self.mode_changed)
+        self.exited_chase = torch.zeros_like(self.mode_changed)
 
-        self._one_hot = torch.zeros(self.num_envs, 2, device=self.device, dtype=torch.float32)
+        self._one_hot = torch.zeros(self.num_envs, self.NUM_MODES, device=self.device, dtype=torch.float32)
         self._last_update_step = -1
 
     @property
@@ -52,6 +57,10 @@ class ModeCommandTerm(CommandTerm):
     def is_patrol(self) -> torch.Tensor:
         return self.current_mode == self.PATROL
 
+    @property
+    def is_chase(self) -> torch.Tensor:
+        return self.current_mode == self.CHASE
+
     def ensure_updated(self) -> None:
         """Updates cached one-hot mode once per environment step."""
         step = int(self._env.common_step_counter)
@@ -61,11 +70,13 @@ class ModeCommandTerm(CommandTerm):
 
         # Cache transition state (pull-based "events").
         self.prev_mode.copy_(self.current_mode)
-        self.current_mode.copy_(torch.clamp(self.robot_mode, min=0, max=1).to(dtype=torch.int64))
+        self.current_mode.copy_(torch.clamp(self.robot_mode, min=0, max=self.NUM_MODES - 1).to(dtype=torch.int64))
 
         self.mode_changed[:] = self.current_mode != self.prev_mode
         self.entered_waypoint[:] = self.mode_changed & (self.current_mode == self.WAYPOINT)
-        self.exited_waypoint[:] = self.mode_changed & (self.current_mode == self.PATROL)
+        self.exited_waypoint[:] = self.mode_changed & (self.prev_mode == self.WAYPOINT)
+        self.entered_chase[:] = self.mode_changed & (self.current_mode == self.CHASE)
+        self.exited_chase[:] = self.mode_changed & (self.prev_mode == self.CHASE)
 
         idx = self.current_mode.unsqueeze(1)
         self._one_hot.zero_()
@@ -80,7 +91,9 @@ class ModeCommandTerm(CommandTerm):
         self.mode_changed[env_ids] = False
         self.entered_waypoint[env_ids] = False
         self.exited_waypoint[env_ids] = False
-        self._one_hot[env_ids] = torch.tensor([1.0, 0.0], device=self.device, dtype=torch.float32)
+        self.entered_chase[env_ids] = False
+        self.exited_chase[env_ids] = False
+        self._one_hot[env_ids] = torch.tensor([1.0, 0.0, 0.0], device=self.device, dtype=torch.float32)
         return super().reset(env_ids=env_ids)
 
     def _update_metrics(self):

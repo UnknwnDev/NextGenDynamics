@@ -34,6 +34,8 @@ class WaypointCommandTerm(CommandTerm):
         self.reached_target = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.per_target_timed_out = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
 
+        self._chase_heading = torch.zeros(self.num_envs, device=self.device)
+
         self._distance_buffer = torch.full(
             (self.num_envs, int(self._env.cfg.distance_lookback)), torch.nan, device=self.device
         )
@@ -60,35 +62,49 @@ class WaypointCommandTerm(CommandTerm):
         mode_term = self._env.command_manager.get_term("mode")
         mode_term.ensure_updated()
         is_waypoint = mode_term.is_waypoint
+        is_chase = mode_term.is_chase
+        is_target_active = is_waypoint | is_chase
 
-        # When entering waypoint mode, reset per-target timeout bookkeeping so patrol time doesn't count.
-        entered_waypoint = mode_term.entered_waypoint
-        if torch.any(entered_waypoint):
-            entered_ids = entered_waypoint.nonzero(as_tuple=False).squeeze(-1)
+        # When entering waypoint or chase mode, reset per-target timeout bookkeeping.
+        entered_target_mode = mode_term.entered_waypoint | mode_term.entered_chase
+        if torch.any(entered_target_mode):
+            entered_ids = entered_target_mode.nonzero(as_tuple=False).squeeze(-1)
             self.time_since_target[entered_ids] = 0.0
             self.reached_target[entered_ids] = False
             self.per_target_timed_out[entered_ids] = False
             self._distance_buffer[entered_ids] = torch.nan
+            n_entered = entered_ids.numel()
+            self._chase_heading[entered_ids] = 2.0 * torch.pi * torch.rand(n_entered, device=self.device)
 
         self._step_counter += 1
         dt = float(self._env.step_dt)
-        self.time_since_target += dt * is_waypoint.to(dtype=self.time_since_target.dtype)
+        self.time_since_target += dt * is_target_active.to(dtype=self.time_since_target.dtype)
 
         # Determine whether the target has been reached.
         target_distance = torch.linalg.norm(self.desired_pos - self.robot.data.root_pos_w, dim=1)
-        self.reached_target = (target_distance < float(self._env.cfg.success_tolerance)) & is_waypoint
+        tolerance = torch.where(
+            is_chase,
+            torch.tensor(float(self._env.cfg.chase_success_tolerance), device=self.device),
+            torch.tensor(float(self._env.cfg.success_tolerance), device=self.device),
+        )
+        self.reached_target = (target_distance < tolerance) & is_target_active
 
         reached_ids = self.reached_target.nonzero(as_tuple=False).squeeze(-1)
         if reached_ids.numel() > 0:
             self._on_reached_target(reached_ids)
 
-        # Timeouts (per-target).
+        # Timeouts (per-target, only for waypoint mode).
         self.per_target_timed_out = (self.time_since_target > self.time_outs) & is_waypoint
 
         # Update progress buffer (lookback distance).
-        active_ids = is_waypoint.nonzero(as_tuple=False).squeeze(-1)
+        active_ids = is_target_active.nonzero(as_tuple=False).squeeze(-1)
         if active_ids.numel() > 0:
             self._write_distance_buffer(active_ids, target_distance)
+
+        # Move chase targets periodically.
+        chase_ids = is_chase.nonzero(as_tuple=False).squeeze(-1)
+        if chase_ids.numel() > 0:
+            self._update_chase_target(chase_ids, dt)
 
     def reset(self, env_ids: Sequence[int] | None = None):
         if env_ids is None:
@@ -115,6 +131,8 @@ class WaypointCommandTerm(CommandTerm):
         self.reached_target[env_ids] = False
         self.per_target_timed_out[env_ids] = False
         self._distance_buffer[env_ids] = torch.nan
+        n_reset = self.num_envs if isinstance(env_ids, slice) else len(env_ids)
+        self._chase_heading[env_ids] = 2.0 * torch.pi * torch.rand(n_reset, device=self.device)
 
         self._resample_targets(env_ids)
         super().reset(env_ids=env_ids)
@@ -175,6 +193,61 @@ class WaypointCommandTerm(CommandTerm):
         self.time_outs[env_ids] = torch.clamp(new_time_outs, min=float(self._env.cfg.min_time_out))
 
         self._distance_buffer[env_ids] = torch.nan
+
+    def _update_chase_target(self, chase_ids: torch.Tensor, dt: float):
+        """Wander the chase target smoothly each step."""
+        n = chase_ids.numel()
+        cfg = self._env.cfg
+        td = self._env.terrain_data
+
+        # 1. Random heading perturbation.
+        wander_rate = float(cfg.chase_target_wander_rate)
+        noise = (torch.rand(n, device=self.device) * 2.0 - 1.0) * wander_rate * dt
+        self._chase_heading[chase_ids] += noise
+
+        # 2. Boundary repulsion steering.
+        margin = float(cfg.chase_target_boundary_margin)
+        cur_xy = self.desired_pos[chase_ids, :2]
+        x_min = -td.size_x / 2.0 + float(cfg.spawn_padding)
+        x_max = td.size_x / 2.0 - float(cfg.spawn_padding)
+        y_min = -td.size_y / 2.0 + float(cfg.spawn_padding)
+        y_max = td.size_y / 2.0 - float(cfg.spawn_padding)
+
+        repulsion = torch.zeros(n, 2, device=self.device)
+        repulsion[:, 0] += (cur_xy[:, 0] < x_min + margin).float()
+        repulsion[:, 0] -= (cur_xy[:, 0] > x_max - margin).float()
+        repulsion[:, 1] += (cur_xy[:, 1] < y_min + margin).float()
+        repulsion[:, 1] -= (cur_xy[:, 1] > y_max - margin).float()
+
+        has_repulsion = repulsion.norm(dim=1) > 0
+        if torch.any(has_repulsion):
+            rep_ids = has_repulsion.nonzero(as_tuple=False).squeeze(-1)
+            repulsion_angle = torch.atan2(repulsion[rep_ids, 1], repulsion[rep_ids, 0])
+            self._chase_heading[chase_ids[rep_ids]] = repulsion_angle
+
+        # 3. Forward movement.
+        speed = float(cfg.chase_target_speed)
+        heading = self._chase_heading[chase_ids]
+        dx = speed * dt * torch.cos(heading)
+        dy = speed * dt * torch.sin(heading)
+        new_xy = cur_xy + torch.stack([dx, dy], dim=1)
+
+        new_xy[:, 0].clamp_(x_min, x_max)
+        new_xy[:, 1].clamp_(y_min, y_max)
+
+        # 4. Obstacle avoidance — flip heading for colliding envs.
+        collides = td.collides(new_xy, margin=float(cfg.target_obstacle_margin))
+        if torch.any(collides):
+            self._chase_heading[chase_ids[collides]] += torch.pi
+
+        # 5. Apply valid moves.
+        valid = ~collides
+        valid_ids = chase_ids[valid]
+        if valid_ids.numel() > 0:
+            valid_xy = new_xy[valid]
+            new_z = td.height_at_xy(valid_xy) + float(cfg.target_z_offset)
+            self.desired_pos[valid_ids, :2] = valid_xy
+            self.desired_pos[valid_ids, 2] = new_z
 
     def _resample_targets(self, env_ids):
         lookback = int(self._env.cfg.distance_lookback)
