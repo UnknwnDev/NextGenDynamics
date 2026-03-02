@@ -128,7 +128,7 @@ class RewardsCfg:
     """Reward terms (each computes inline from sensors/robot data)."""
     life_time = RewTerm(func=mdp.life_time_reward, weight=0.005)
     progress = RewTerm(func=mdp.progress_reward, weight=1.0e5)
-    velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=5.0e3)
+    velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=1.0e4)
     reach_target = RewTerm(func=mdp.reach_target_reward, weight=1.0e5)
 
     death_penalty = RewTerm(func=mdp.death_penalty, weight=-5.0e5)
@@ -184,7 +184,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     terminations: TerminationsCfg = TerminationsCfg()
 
     # --- Task parameters ---
-    episode_length_s = 600.0
+    episode_length_s = 1200.0
 
     base_name = "body"
     foot_names = "leg_foot_.*"
@@ -215,7 +215,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     point_max_distance = 10.0
     point_min_distance = 5.0
     success_tolerance = 0.5
-    time_out_per_target = 600.0
+    time_out_per_target = 1200.0
     time_out_decrease_per_target = 0.075
     min_time_out = 1.0
 
