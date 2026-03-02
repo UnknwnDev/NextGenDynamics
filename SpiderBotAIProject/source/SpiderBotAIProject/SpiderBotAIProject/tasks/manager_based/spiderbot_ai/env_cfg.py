@@ -186,7 +186,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     terminations: TerminationsCfg = TerminationsCfg()
 
     # --- Task parameters ---
-    episode_length_s = 1200.0
+    episode_length_s = 60.0
 
     base_name = "body"
     foot_names = "leg_foot_.*"
@@ -218,7 +218,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     point_max_distance = 10.0
     point_min_distance = 5.0
     success_tolerance = 0.5
-    time_out_per_target = 1200.0
+    time_out_per_target = 60.0
     time_out_decrease_per_target = 0.075
     min_time_out = 1.0
 
