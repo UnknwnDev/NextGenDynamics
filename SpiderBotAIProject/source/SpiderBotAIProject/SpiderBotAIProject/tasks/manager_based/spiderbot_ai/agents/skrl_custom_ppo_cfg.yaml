@@ -22,7 +22,7 @@ agent:
   learning_rate_scheduler_kwargs:
     kl_threshold: 0.05
     min_lr: 3.0e-5
-  state_preprocessor: null
+  state_preprocessor: RunningStandardScaler
   state_preprocessor_kwargs: null
   value_preprocessor: RunningStandardScaler
   value_preprocessor_kwargs: null

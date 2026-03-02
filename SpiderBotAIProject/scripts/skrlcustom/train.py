@@ -402,6 +402,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     shaper_scale = cfg.get("rewards_shaper_scale", 1.0)
     cfg["rewards_shaper"] = lambda rewards, *args, **kwargs: rewards * shaper_scale
 
+    cfg["state_preprocessor"] = RunningStandardScaler
+    cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
     cfg["value_preprocessor"] = RunningStandardScaler
     cfg["value_preprocessor_kwargs"] = {"size": 1, "device": device}
 

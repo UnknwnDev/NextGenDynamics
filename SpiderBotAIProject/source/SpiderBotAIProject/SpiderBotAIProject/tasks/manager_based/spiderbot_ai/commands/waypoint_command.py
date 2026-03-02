@@ -36,9 +36,8 @@ class WaypointCommandTerm(CommandTerm):
 
         self._chase_heading = torch.zeros(self.num_envs, device=self.device)
 
-        self._distance_buffer = torch.full(
-            (self.num_envs, int(self._env.cfg.distance_lookback)), torch.nan, device=self.device
-        )
+        self._previous_distance = torch.full((self.num_envs,), float('nan'), device=self.device)
+        self._previous_distance_snapshot = torch.full((self.num_envs,), float('nan'), device=self.device)
         self._step_counter = 0
         self._last_update_step = -1
         self._debug_vis_z_offset = torch.tensor([0.0, 0.0, 0.15], device=self.device).view(1, 3)
@@ -72,7 +71,7 @@ class WaypointCommandTerm(CommandTerm):
             self.time_since_target[entered_ids] = 0.0
             self.reached_target[entered_ids] = False
             self.per_target_timed_out[entered_ids] = False
-            self._distance_buffer[entered_ids] = torch.nan
+            self._previous_distance[entered_ids] = float('nan')
             n_entered = entered_ids.numel()
             self._chase_heading[entered_ids] = 2.0 * torch.pi * torch.rand(n_entered, device=self.device)
 
@@ -80,8 +79,12 @@ class WaypointCommandTerm(CommandTerm):
         dt = float(self._env.step_dt)
         self.time_since_target += dt * is_target_active.to(dtype=self.time_since_target.dtype)
 
-        # Determine whether the target has been reached.
+        # Snapshot previous distance for progress reward, then update.
         target_distance = torch.linalg.norm(self.desired_pos - self.robot.data.root_pos_w, dim=1)
+        self._previous_distance_snapshot = self._previous_distance.clone()
+        self._previous_distance[:] = target_distance
+
+        # Determine whether the target has been reached.
         tolerance = torch.where(
             is_chase,
             torch.tensor(float(self._env.cfg.chase_success_tolerance), device=self.device),
@@ -95,11 +98,6 @@ class WaypointCommandTerm(CommandTerm):
 
         # Timeouts (per-target, only for waypoint mode).
         self.per_target_timed_out = (self.time_since_target > self.time_outs) & is_waypoint
-
-        # Update progress buffer (lookback distance).
-        active_ids = is_target_active.nonzero(as_tuple=False).squeeze(-1)
-        if active_ids.numel() > 0:
-            self._write_distance_buffer(active_ids, target_distance)
 
         # Move chase targets periodically.
         chase_ids = is_chase.nonzero(as_tuple=False).squeeze(-1)
@@ -130,7 +128,7 @@ class WaypointCommandTerm(CommandTerm):
         self.time_outs[env_ids] = float(self._env.cfg.time_out_per_target)
         self.reached_target[env_ids] = False
         self.per_target_timed_out[env_ids] = False
-        self._distance_buffer[env_ids] = torch.nan
+        self._previous_distance[env_ids] = float('nan')
         n_reset = self.num_envs if isinstance(env_ids, slice) else len(env_ids)
         self._chase_heading[env_ids] = 2.0 * torch.pi * torch.rand(n_reset, device=self.device)
 
@@ -173,13 +171,9 @@ class WaypointCommandTerm(CommandTerm):
         self._goal_visualizer.visualize(translations=self.desired_pos + self._debug_vis_z_offset)
         self._next_goal_visualizer.visualize(translations=self.next_desired_pos + self._debug_vis_z_offset)
 
-    def get_distance_buffer(self) -> torch.Tensor:
-        return self._distance_buffer
-
-    def _write_distance_buffer(self, env_ids: torch.Tensor, target_distance: torch.Tensor):
-        """Write target distance into the cyclic lookback buffer for a subset of environments."""
-        index = self._step_counter % int(self._env.cfg.distance_lookback)
-        self._distance_buffer[env_ids, index] = target_distance[env_ids]
+    def get_previous_distance(self) -> torch.Tensor:
+        """Return the distance snapshot from the previous step (NaN if unavailable)."""
+        return self._previous_distance_snapshot
 
     def _on_reached_target(self, env_ids: torch.Tensor):
         self.targets_reached[env_ids] += 1.0
@@ -192,7 +186,7 @@ class WaypointCommandTerm(CommandTerm):
         )
         self.time_outs[env_ids] = torch.clamp(new_time_outs, min=float(self._env.cfg.min_time_out))
 
-        self._distance_buffer[env_ids] = torch.nan
+        self._previous_distance[env_ids] = float('nan')
 
     def _update_chase_target(self, chase_ids: torch.Tensor, dt: float):
         """Wander the chase target smoothly each step."""
@@ -250,24 +244,15 @@ class WaypointCommandTerm(CommandTerm):
             self.desired_pos[valid_ids, 2] = new_z
 
     def _resample_targets(self, env_ids):
-        lookback = int(self._env.cfg.distance_lookback)
-        index = self._step_counter % lookback
-
         if isinstance(env_ids, slice):
             anchor = self._env.spawn_pos_w
             self.desired_pos[:] = self._sample_target_positions(anchor)
             self.next_desired_pos[:] = self._sample_target_positions(self.desired_pos)
-
-            distance = torch.linalg.norm(anchor - self.desired_pos, dim=1)
-            self._distance_buffer[:, index] = distance
         else:
             env_ids_t = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
             anchor = self._env.spawn_pos_w[env_ids_t]
             self.desired_pos[env_ids_t] = self._sample_target_positions(anchor)
             self.next_desired_pos[env_ids_t] = self._sample_target_positions(self.desired_pos[env_ids_t])
-
-            distance = torch.linalg.norm(anchor - self.desired_pos[env_ids_t], dim=1)
-            self._distance_buffer[env_ids_t, index] = distance
 
     def _sample_target_positions(self, anchor_pos_w: torch.Tensor) -> torch.Tensor:
         """Sample obstacle-avoiding 3D target positions around anchors."""

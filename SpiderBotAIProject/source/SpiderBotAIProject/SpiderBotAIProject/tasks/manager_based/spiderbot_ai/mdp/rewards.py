@@ -40,14 +40,13 @@ def progress_reward(env) -> torch.Tensor:
     robot = env.scene.articulations["robot"]
 
     target_distance = torch.linalg.norm(waypoint.desired_pos - robot.data.root_pos_w, dim=1)
-    buffer = waypoint.get_distance_buffer()
-    sum_valid = torch.nansum(buffer, dim=1)
-    count_valid = torch.clamp(torch.sum(~torch.isnan(buffer), dim=1), min=1.0)
-    previous_buffered_distance = sum_valid / count_valid
+    previous_distance = waypoint.get_previous_distance()
 
-    difference = (previous_buffered_distance - target_distance) * (1 + 0.5 * (count_valid - 1))
-    progress = torch.sign(difference) * torch.pow(torch.abs(difference), float(env.cfg.progress_pow))
-    progress *= (waypoint.targets_reached * 0.5) + 1.0
+    # Instantaneous step-to-step delta: positive = approaching target
+    delta = previous_distance - target_distance
+    delta = torch.nan_to_num(delta, nan=0.0)  # First step after reset → 0
+
+    progress = delta * ((waypoint.targets_reached * 0.25) + 1.0)
 
     return progress * _mode_scale(env, "progress") * env.step_dt
 

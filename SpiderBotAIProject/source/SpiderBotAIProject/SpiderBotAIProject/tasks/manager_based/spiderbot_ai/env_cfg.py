@@ -128,14 +128,14 @@ class RewardsCfg:
     """Reward terms (each computes inline from sensors/robot data)."""
     life_time = RewTerm(func=mdp.life_time_reward, weight=0.005)
     progress = RewTerm(func=mdp.progress_reward, weight=5.0e4)
-    velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=1.0e4)
+    velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=1.0e3)
     reach_target = RewTerm(func=mdp.reach_target_reward, weight=2.5e4)
 
     death_penalty = RewTerm(func=mdp.death_penalty, weight=-5.0e2)
     feet_ground_time = RewTerm(func=mdp.feet_ground_time_penalty, weight=-5.0e1)
     jump_penalty = RewTerm(func=mdp.jump_penalty, weight=-1.0e2)
     body_angular_velocity = RewTerm(func=mdp.body_angular_velocity_penalty, weight=-15.0)
-    speed = RewTerm(func=mdp.speed_reward, weight=1.0e3)
+    speed = RewTerm(func=mdp.speed_reward, weight=5.0e2)
     body_vertical_acceleration = RewTerm(func=mdp.body_vertical_acceleration_penalty, weight=-3.0)
     dof_torques = RewTerm(func=mdp.dof_torques_l2, weight=-0.25)
     dof_acc = RewTerm(func=mdp.dof_acc_l2, weight=-2.5e-4)
@@ -214,7 +214,6 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     nav_dim = 33
 
     # Target settings
-    distance_lookback = 8
     point_max_distance = 10.0
     point_min_distance = 5.0
     success_tolerance = 0.5
@@ -223,7 +222,6 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     min_time_out = 1.0
 
     # Reward shaping parameters (scales live in RewardsCfg weights).
-    progress_pow = 1.3
     wall_close_threshold = 1.5
     wall_height_threshold = -0.2
 
