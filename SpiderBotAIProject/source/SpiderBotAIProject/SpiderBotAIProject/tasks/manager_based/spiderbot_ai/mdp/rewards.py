@@ -45,6 +45,8 @@ def progress_reward(env) -> torch.Tensor:
     # Instantaneous step-to-step delta: positive = approaching target
     delta = previous_distance - target_distance
     delta = torch.nan_to_num(delta, nan=0.0)  # First step after reset → 0
+    # Zero out on target-transition step to avoid spike from mismatched targets
+    delta = torch.where(waypoint.reached_target, torch.zeros_like(delta), delta)
 
     progress = delta * ((waypoint.targets_reached * 0.25) + 1.0)
 
