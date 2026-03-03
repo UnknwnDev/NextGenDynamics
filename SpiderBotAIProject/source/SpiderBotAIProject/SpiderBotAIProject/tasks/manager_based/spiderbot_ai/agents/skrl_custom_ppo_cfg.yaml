@@ -12,7 +12,7 @@ model:
 # PPO agent configuration (field names are from PPO_DEFAULT_CONFIG)
 # https://skrl.readthedocs.io/en/latest/api/agents/ppo.html
 agent:
-  rollouts: 32
+  rollouts: 64
   learning_epochs: 3
   mini_batches: 8
   discount_factor: 0.99
@@ -36,7 +36,7 @@ agent:
   value_loss_scale: 1.0
   kl_threshold: 0.0
   rewards_shaper_scale: 0.6
-  time_limit_bootstrap: False
+  time_limit_bootstrap: True
   experiment:
     directory: "spiderbot_ai"
     experiment_name: ""
