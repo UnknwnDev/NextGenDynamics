@@ -139,10 +139,10 @@ class RewardsCfg:
     dof_torques = RewTerm(func=mdp.dof_torques_l2, weight=-0.25)
     dof_acc = RewTerm(func=mdp.dof_acc_l2, weight=-2.5e-4)
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.5)
-    feet_air_time = RewTerm(func=mdp.feet_air_time_reward, weight=1.0e2)
+    feet_air_time = RewTerm(func=mdp.feet_air_time_reward, weight=1.0e1)
     undesired_contacts = RewTerm(func=mdp.undesired_contacts_penalty, weight=-2.0e2)
     feet_contact_force = RewTerm(func=mdp.feet_contact_force_penalty, weight=-1.0e-7)
-    flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0e3)
+    flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0e2)
     wall_proximity = RewTerm(func=mdp.wall_proximity_penalty, weight=0.0)
 
     patrol_exploration = RewTerm(func=mdp.patrol_exploration_reward, weight=2.0)
