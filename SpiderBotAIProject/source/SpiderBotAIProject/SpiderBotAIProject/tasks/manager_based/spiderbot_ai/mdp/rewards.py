@@ -203,3 +203,13 @@ def chase_proximity_reward(env) -> torch.Tensor:
     dist = torch.linalg.norm(waypoint.desired_pos - robot.data.root_pos_w, dim=1)
     proximity = 1.0 / (dist + 0.5)
     return proximity * _mode_scale(env, "chase_proximity") * env.step_dt
+
+
+def stillness_penalty(env) -> torch.Tensor:
+    """Penalize low horizontal speed with a smooth ramp below min_speed."""
+    robot = env.scene.articulations["robot"]
+    vel = robot.data.root_lin_vel_w[:, :2]
+    speed = torch.linalg.norm(vel, dim=1)
+    min_speed = 0.1  # m/s threshold
+    penalty = torch.clamp(min_speed - speed, min=0.0) / min_speed
+    return penalty * env.step_dt
