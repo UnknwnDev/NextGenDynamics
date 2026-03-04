@@ -9,7 +9,7 @@ import numpy as np
 
 from .custom_terrain_config import CustomTerrainCfg
 from .height_sampling import sample_height_np
-from .obstacles import obstacle_radii
+from .obstacles import compute_obstacle_circles
 
 
 def spawn_point_sampler(
@@ -18,20 +18,7 @@ def spawn_point_sampler(
     """Sample valid spawn points across the terrain (N, 3)."""
     rng = np.random.default_rng(cfg.seed)
 
-    obstacle_circles: list[list[float]] = []
-    if obstacle_placement and cfg.obstacles:
-        obs_cfg_map = {obs.type: obs for obs in cfg.obstacles}
-        for obs_type, data in obstacle_placement.items():
-            positions = data.get("positions")
-            scales = data.get("scales")
-            if positions is None or scales is None:
-                continue
-            base_radius = obs_cfg_map.get(obs_type).radius if obs_type in obs_cfg_map else None
-            radii = obstacle_radii(obs_type, scales, base_radius)
-            for i in range(len(positions)):
-                obstacle_circles.append([positions[i, 0], positions[i, 1], float(radii[i])])
-
-    obs_data = np.asarray(obstacle_circles, dtype=np.float32)  # (M, 3)
+    obs_data = compute_obstacle_circles(obstacle_placement or {}, cfg)  # (M, 3)
 
     valid_points: list[list[float]] = []
 

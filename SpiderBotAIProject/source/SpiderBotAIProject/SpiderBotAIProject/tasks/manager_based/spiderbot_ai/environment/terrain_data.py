@@ -13,6 +13,7 @@ from pxr import Usd, UsdGeom
 
 from ..custom_terrain_gen.custom_terrain_config import CustomTerrainCfg
 from ..custom_terrain_gen.height_sampling import sample_height_torch
+from ..custom_terrain_gen.obstacles import compute_obstacle_circles, mesh_placer
 from ..custom_terrain_gen.spawnpoint_sampler import spawn_point_sampler
 
 
@@ -60,6 +61,10 @@ class TerrainData:
         self.size_y = float(terrain_cfg.size[1])
         self.origin_xy = torch.tensor([0.0, 0.0], device=device)
 
+        # Recompute obstacle placement (deterministic: same seed + terrain size)
+        obstacle_placement = mesh_placer(terrain_cfg, height_map_np)
+        obstacle_circles_np = compute_obstacle_circles(obstacle_placement, terrain_cfg)
+
         spawn_points_np = None
         spawn_prim = UsdGeom.Points.Get(stage, "/World/debug/spawn_points")
         if spawn_prim is not None and spawn_prim.GetPrim().IsValid():
@@ -67,10 +72,10 @@ class TerrainData:
             spawn_points_np = np.array(spawn_points, dtype=np.float32, copy=True)
 
         if spawn_points_np is None or spawn_points_np.size == 0:
-            spawn_points_np = spawn_point_sampler(height_map_np, obstacle_placement=None, cfg=terrain_cfg)
+            spawn_points_np = spawn_point_sampler(height_map_np, obstacle_placement=obstacle_placement, cfg=terrain_cfg)
 
         self.spawn_points = torch.from_numpy(spawn_points_np).to(device=device, dtype=torch.float32)
-        self.obstacle_circles = torch.zeros(0, 3, device=device, dtype=torch.float32)
+        self.obstacle_circles = torch.from_numpy(obstacle_circles_np).to(device=device, dtype=torch.float32)
 
     def height_at_xy(self, xy_w: torch.Tensor) -> torch.Tensor:
         if xy_w.shape[-1] != 2:

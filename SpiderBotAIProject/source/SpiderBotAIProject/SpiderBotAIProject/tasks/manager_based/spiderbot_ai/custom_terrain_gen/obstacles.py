@@ -25,6 +25,28 @@ def obstacle_radii(obstacle_type: str, scales: np.ndarray, base_radius: float | 
     return 0.5 * s_xy
 
 
+def compute_obstacle_circles(
+    placements: dict[str, dict[str, np.ndarray]],
+    cfg: CustomTerrainCfg,
+) -> np.ndarray:
+    """Convert obstacle placement dict to (M, 3) array of [x, y, radius] circles."""
+    if not placements or cfg.obstacles is None:
+        return np.zeros((0, 3), dtype=np.float32)
+
+    obs_cfg_map = {obs.type: obs for obs in cfg.obstacles}
+    circles: list[list[float]] = []
+    for obs_type, data in placements.items():
+        positions = data.get("positions")
+        scales = data.get("scales")
+        if positions is None or scales is None:
+            continue
+        base_radius = obs_cfg_map[obs_type].radius if obs_type in obs_cfg_map else None
+        radii = obstacle_radii(obs_type, scales, base_radius)
+        for i in range(len(positions)):
+            circles.append([positions[i, 0], positions[i, 1], float(radii[i])])
+    return np.asarray(circles, dtype=np.float32) if circles else np.zeros((0, 3), dtype=np.float32)
+
+
 def mesh_placer(cfg: CustomTerrainCfg, height_map: np.ndarray) -> dict[str, dict[str, np.ndarray]]:
     """Randomly sample obstacle placements (positions + scales)."""
     if cfg.obstacles is None:
