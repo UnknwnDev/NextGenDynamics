@@ -30,4 +30,6 @@ services:
         "SpiderBotAIProject-v0",
         "--headless",
         "--distributed",
+        "--checkpoint",
+        "checkpoints/base_temp.pt",
       ]

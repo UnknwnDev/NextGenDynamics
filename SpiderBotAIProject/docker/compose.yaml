@@ -25,6 +25,7 @@ services:
       - ${HOME}/docker/isaac-sim/carblogs:/isaac-sim/kit/logs/Kit/Isaac-Sim:rw
       - ${HOME}/docker/isaac-sim/data:/root/.local/share/ov/data:rw
       - ${HOME}/docker/isaac-sim/documents:/root/Documents:rw
+      - ../checkpoints:/workspace/SpiderBotAIProject/checkpoints:rw
       - ../logs:/workspace/SpiderBotAIProject/logs:rw
       - ../outputs:/workspace/SpiderBotAIProject/outputs:rw
     command: ["-p", "scripts/skrlcustom/train.py", "--task", "SpiderBotAIProject-v0", "--headless"]
