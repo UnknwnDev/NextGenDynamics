@@ -71,4 +71,4 @@ tests/
 .isaac-lab-docker-history
 /ChargeProject/spiderbot
 SpiderBotAIProject/source/SpiderBotAIProject/SpiderBotAIProject/assets/terrains/custom_terrain.usd
-/SpiderBotAIProject/checkpoints
+/SpiderBotAIProject/checkpoints/debug
