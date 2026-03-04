@@ -214,6 +214,12 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     nav_size = 24.0
     nav_dim = 33
 
+    # Patrol staleness targeting
+    patrol_target_tolerance: float = 1.5        # "reached" threshold for patrol targets (m)
+    patrol_target_update_interval: float = 5.0  # periodic target recomputation (seconds)
+    patrol_target_min_staleness: float = 0.1    # below this, map is considered fully explored
+    patrol_target_min_distance: float = 1.0     # don't target a cell under the robot (m)
+
     # Target settings
     point_max_distance = 10.0
     point_min_distance = 5.0

@@ -45,6 +45,8 @@ class ModeCommandTerm(CommandTerm):
         self.exited_waypoint = torch.zeros_like(self.mode_changed)
         self.entered_chase = torch.zeros_like(self.mode_changed)
         self.exited_chase = torch.zeros_like(self.mode_changed)
+        self.entered_patrol = torch.zeros_like(self.mode_changed)
+        self.exited_patrol = torch.zeros_like(self.mode_changed)
 
         self._one_hot = torch.zeros(self.num_envs, self.NUM_MODES, device=self.device, dtype=torch.float32)
         self._last_update_step = -1
@@ -81,6 +83,8 @@ class ModeCommandTerm(CommandTerm):
         self.exited_waypoint[:] = self.mode_changed & (self.prev_mode == self.WAYPOINT)
         self.entered_chase[:] = self.mode_changed & (self.current_mode == self.CHASE)
         self.exited_chase[:] = self.mode_changed & (self.prev_mode == self.CHASE)
+        self.entered_patrol[:] = self.mode_changed & (self.current_mode == self.PATROL)
+        self.exited_patrol[:] = self.mode_changed & (self.prev_mode == self.PATROL)
 
         idx = self.current_mode.unsqueeze(1)
         self._one_hot.zero_()
@@ -109,6 +113,8 @@ class ModeCommandTerm(CommandTerm):
             self.exited_waypoint[:] = False
             self.entered_chase[:] = False
             self.exited_chase[:] = False
+            self.entered_patrol[:] = False
+            self.exited_patrol[:] = False
             self._one_hot.zero_()
             self._one_hot.scatter_(1, mode.unsqueeze(1), 1.0)
         else:
@@ -121,6 +127,8 @@ class ModeCommandTerm(CommandTerm):
             self.exited_waypoint[env_ids] = False
             self.entered_chase[env_ids] = False
             self.exited_chase[env_ids] = False
+            self.entered_patrol[env_ids] = False
+            self.exited_patrol[env_ids] = False
             one_hot = torch.zeros(len(env_ids), self.NUM_MODES, device=self.device, dtype=torch.float32)
             one_hot.scatter_(1, mode.unsqueeze(1), 1.0)
             self._one_hot[env_ids] = one_hot

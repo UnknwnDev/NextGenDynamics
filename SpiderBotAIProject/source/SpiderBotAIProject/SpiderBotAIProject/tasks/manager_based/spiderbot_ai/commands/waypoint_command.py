@@ -42,6 +42,9 @@ class WaypointCommandTerm(CommandTerm):
         self._last_update_step = -1
         self._debug_vis_z_offset = torch.tensor([0.0, 0.0, 0.15], device=self.device).view(1, 3)
 
+        # Patrol staleness targeting
+        self._patrol_time_since_update = torch.zeros(self.num_envs, device=self.device)
+
     @property
     def command(self) -> torch.Tensor:
         return self.desired_pos
@@ -62,7 +65,8 @@ class WaypointCommandTerm(CommandTerm):
         mode_term.ensure_updated()
         is_waypoint = mode_term.is_waypoint
         is_chase = mode_term.is_chase
-        is_target_active = is_waypoint | is_chase
+        is_patrol = mode_term.is_patrol
+        is_target_active = is_waypoint | is_chase | is_patrol
 
         # When entering waypoint or chase mode, reset per-target timeout bookkeeping.
         entered_target_mode = mode_term.entered_waypoint | mode_term.entered_chase
@@ -74,6 +78,12 @@ class WaypointCommandTerm(CommandTerm):
             self._previous_distance[entered_ids] = float('nan')
             n_entered = entered_ids.numel()
             self._chase_heading[entered_ids] = 2.0 * torch.pi * torch.rand(n_entered, device=self.device)
+
+        # When entering patrol mode, force immediate staleness target update.
+        if torch.any(mode_term.entered_patrol):
+            patrol_enter_ids = mode_term.entered_patrol.nonzero(as_tuple=False).squeeze(-1)
+            self._patrol_time_since_update[patrol_enter_ids] = float('inf')
+            self._previous_distance[patrol_enter_ids] = float('nan')
 
         self._step_counter += 1
         dt = float(self._env.step_dt)
@@ -88,7 +98,11 @@ class WaypointCommandTerm(CommandTerm):
         tolerance = torch.where(
             is_chase,
             torch.tensor(float(self._env.cfg.chase_success_tolerance), device=self.device),
-            torch.tensor(float(self._env.cfg.success_tolerance), device=self.device),
+            torch.where(
+                is_patrol,
+                torch.tensor(float(self._env.cfg.patrol_target_tolerance), device=self.device),
+                torch.tensor(float(self._env.cfg.success_tolerance), device=self.device),
+            ),
         )
         self.reached_target = (target_distance < tolerance) & is_target_active
 
@@ -103,6 +117,11 @@ class WaypointCommandTerm(CommandTerm):
         chase_ids = is_chase.nonzero(as_tuple=False).squeeze(-1)
         if chase_ids.numel() > 0:
             self._update_chase_target(chase_ids, dt)
+
+        # Update patrol targets from staleness peaks.
+        patrol_ids = is_patrol.nonzero(as_tuple=False).squeeze(-1)
+        if patrol_ids.numel() > 0:
+            self._update_patrol_target(patrol_ids, dt)
 
     def reset(self, env_ids: Sequence[int] | None = None):
         if env_ids is None:
@@ -131,6 +150,7 @@ class WaypointCommandTerm(CommandTerm):
         self._previous_distance[env_ids] = float('nan')
         n_reset = self.num_envs if isinstance(env_ids, slice) else len(env_ids)
         self._chase_heading[env_ids] = 2.0 * torch.pi * torch.rand(n_reset, device=self.device)
+        self._patrol_time_since_update[env_ids] = float('inf')  # force update on first step
 
         self._resample_targets(env_ids)
         super().reset(env_ids=env_ids)
@@ -242,6 +262,65 @@ class WaypointCommandTerm(CommandTerm):
             new_z = td.height_at_xy(valid_xy) + float(cfg.target_z_offset)
             self.desired_pos[valid_ids, :2] = valid_xy
             self.desired_pos[valid_ids, 2] = new_z
+
+    def _update_patrol_target(self, patrol_ids: torch.Tensor, dt: float) -> None:
+        """Set desired_pos for patrol envs to the highest-staleness region."""
+        if patrol_ids.numel() == 0:
+            return
+
+        cfg = self._env.cfg
+        map_output = self._env._map_output
+
+        # Increment patrol update timer
+        self._patrol_time_since_update[patrol_ids] += dt
+
+        # Get current peak data for patrol envs
+        peak_xy = map_output.staleness_peak_world[patrol_ids]       # (M, 2)
+        peak_val = map_output.staleness_peak_value[patrol_ids]      # (M,)
+
+        # Current distance to target
+        robot_xy = self.robot.data.root_pos_w[patrol_ids, :2]
+        target_xy = self.desired_pos[patrol_ids, :2]
+        dist_to_target = torch.linalg.norm(target_xy - robot_xy, dim=1)
+
+        # Hybrid update conditions
+        reached = dist_to_target < float(cfg.patrol_target_tolerance)
+        timed_out = self._patrol_time_since_update[patrol_ids] > float(cfg.patrol_target_update_interval)
+        has_meaningful_peak = peak_val >= float(cfg.patrol_target_min_staleness)
+
+        # Only update when there IS a meaningful peak to navigate toward
+        needs_update = (reached | timed_out) & has_meaningful_peak
+
+        update_ids = patrol_ids[needs_update]
+        if update_ids.numel() == 0:
+            return
+
+        # Enforce minimum distance: don't target a cell right under the robot
+        update_peak_xy = peak_xy[needs_update]
+        update_robot_xy = robot_xy[needs_update]
+        peak_dist = torch.linalg.norm(update_peak_xy - update_robot_xy, dim=1)
+        far_enough = peak_dist > float(cfg.patrol_target_min_distance)
+
+        final_ids = update_ids[far_enough]
+        final_xy = update_peak_xy[far_enough]
+
+        if final_ids.numel() == 0:
+            return
+
+        # Compute Z from terrain height
+        z = self._env.terrain_data.height_at_xy(final_xy) + float(cfg.target_z_offset)
+
+        # Set desired_pos to staleness peak
+        self.desired_pos[final_ids, 0] = final_xy[:, 0]
+        self.desired_pos[final_ids, 1] = final_xy[:, 1]
+        self.desired_pos[final_ids, 2] = z
+
+        # No lookahead for patrol — next target is dynamically recomputed on reach
+        self.next_desired_pos[final_ids] = self.desired_pos[final_ids].clone()
+
+        # Reset timers and distance tracking to avoid spurious progress reward spike
+        self._patrol_time_since_update[final_ids] = 0.0
+        self._previous_distance[final_ids] = float('nan')
 
     def _resample_targets(self, env_ids):
         if isinstance(env_ids, slice):

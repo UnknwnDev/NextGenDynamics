@@ -25,6 +25,8 @@ class MapManagerOutput:
     height_data: torch.Tensor  # (N, 64, 64)
     far_staleness: torch.Tensor  # (N, 8)
     exploration_bonus: torch.Tensor  # (N,)
+    staleness_peak_world: torch.Tensor  # (N, 2) — world XY of highest-staleness region
+    staleness_peak_value: torch.Tensor  # (N,) — staleness value at peak
 
 
 @dataclass
@@ -92,6 +94,8 @@ class MapManager:
                 height_data=torch.zeros(self.num_envs, 64, 64, device=self.device),
                 far_staleness=torch.zeros(self.num_envs, 8, device=self.device),
                 exploration_bonus=torch.zeros(self.num_envs, device=self.device),
+                staleness_peak_world=torch.zeros(self.num_envs, 2, device=self.device),
+                staleness_peak_value=torch.zeros(self.num_envs, device=self.device),
             )
 
         self.update_into(self._default_output, env_origins, robot_pos_w, robot_yaw_w, dt)
@@ -106,6 +110,7 @@ class MapManager:
         self._sample_egocentric_maps(robot_pos_w, robot_yaw_w, env_origins, output.nav_data)
         self._compute_height_data(output.height_data)
         self._compute_bev_data(output.bev_data)
+        self._compute_staleness_peak(env_origins, output)
 
     def _create_workspace(self, num_points: int) -> MapManagerWorkspace:
         dim = int(self.config.staleness_dim)
@@ -266,6 +271,28 @@ class MapManager:
         )
         nav_staleness = F.grid_sample(self.staleness_maps, grid_s, align_corners=False, padding_mode="border")
         output_nav.copy_(nav_staleness)
+
+    def _compute_staleness_peak(self, env_origins: torch.Tensor, output: MapManagerOutput) -> None:
+        """Find the highest-staleness region and write world XY + value to output."""
+        dim = int(self.config.staleness_dim)
+        half_size = float(self.config.patrol_size) / 2.0
+        cell_size = float(self.config.patrol_size) / dim  # meters per cell
+
+        # 3x3 avg_pool to smooth single-cell noise into region peaks
+        smoothed = F.avg_pool2d(self.staleness_maps, kernel_size=3, stride=1, padding=1)
+        flat = smoothed.view(self.num_envs, -1)
+        peak_flat_idx = torch.argmax(flat, dim=1)
+
+        peak_row = peak_flat_idx // dim
+        peak_col = peak_flat_idx % dim
+
+        # Grid cell center → world coordinates
+        output.staleness_peak_world[:, 0] = (peak_col.float() + 0.5) * cell_size - half_size + env_origins[:, 0]
+        output.staleness_peak_world[:, 1] = (peak_row.float() + 0.5) * cell_size - half_size + env_origins[:, 1]
+
+        # Report unsmoothed staleness at the peak cell
+        staleness_flat = self.staleness_maps.view(self.num_envs, -1)
+        output.staleness_peak_value[:] = staleness_flat.gather(1, peak_flat_idx.unsqueeze(1)).squeeze(1)
 
     def reset(self, env_ids):
         """Reset staleness maps for specific environments."""

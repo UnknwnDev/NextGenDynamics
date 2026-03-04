@@ -56,6 +56,8 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             height_data=torch.zeros(self.num_envs, 64, 64, device=self.device),
             far_staleness=torch.zeros(self.num_envs, 8, device=self.device),
             exploration_bonus=torch.zeros(self.num_envs, device=self.device),
+            staleness_peak_world=torch.zeros(self.num_envs, 2, device=self.device),
+            staleness_peak_value=torch.zeros(self.num_envs, device=self.device),
         )
 
         contact_sensor = self.scene.sensors["contact_sensor"]
@@ -160,10 +162,9 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
 
         # 1. Mode state transitions (legitimate command — updates one-hot encoding)
         self.command_manager.get_term("mode").ensure_updated()
-        # 2. Waypoint state machine (legitimate command — target reached, timeouts)
-        self.command_manager.get_term("waypoint").ensure_updated()
 
-        # 3. Map manager (BEV, height scan, staleness, exploration bonus)
+        # 2. Map manager (BEV, height scan, staleness, exploration bonus, staleness peak)
+        #    Runs before waypoint so patrol mode can read staleness_peak_world.
         self._map_manager.update_into(
             self._map_output,
             env_origins=self.scene.env_origins,
@@ -171,6 +172,9 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             robot_yaw_w=robot.data.heading_w.unsqueeze(-1),
             dt=self.step_dt,
         )
+
+        # 3. Waypoint state machine (legitimate command — target reached, timeouts, patrol target)
+        self.command_manager.get_term("waypoint").ensure_updated()
 
         # 4. Contact state (used by observations + undesired_contacts reward)
         net_contact_forces = contact_sensor.data.net_forces_w_history
@@ -194,6 +198,8 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
         self._map_output.height_data[env_ids] = 0.0
         self._map_output.far_staleness[env_ids] = 0.0
         self._map_output.exploration_bonus[env_ids] = 0.0
+        self._map_output.staleness_peak_world[env_ids] = 0.0
+        self._map_output.staleness_peak_value[env_ids] = 0.0
         self._is_contact[env_ids] = 0.0
         self._base_contact_time[env_ids] = 0.0
 
