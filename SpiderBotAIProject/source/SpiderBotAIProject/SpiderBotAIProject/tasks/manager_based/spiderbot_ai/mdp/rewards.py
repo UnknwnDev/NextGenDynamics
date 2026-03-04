@@ -164,22 +164,29 @@ def wall_proximity_penalty(env) -> torch.Tensor:
     lidar_sensor = env.scene.sensors["lidar_sensor"]
 
     lidar_hits_w = lidar_sensor.data.ray_hits_w
-    lidar_hits_w = torch.nan_to_num(lidar_hits_w, nan=0.0, posinf=1000.0, neginf=-1000.0)
+    lidar_hits_w = torch.nan_to_num(lidar_hits_w, nan=1e6, posinf=1e6, neginf=-1e6)
     rel_hits_w = lidar_hits_w - lidar_sensor.data.pos_w.unsqueeze(1)
 
+    # Distance is rotation-invariant — compute before body frame transform
+    dists = torch.norm(rel_hits_w, dim=-1)
+
+    threshold = float(env.cfg.wall_close_threshold)
+    is_close = dists < threshold
+
+    # Body frame Z filter: distinguishes walls from sloped ground
     batch_size, num_points, _ = rel_hits_w.shape
     rel_hits_w_flat = rel_hits_w.view(-1, 3)
-    quat_w_expanded = lidar_sensor.data.quat_w.unsqueeze(1).expand(-1, num_points, -1).reshape(-1, 4)
+    quat_w_expanded = lidar_sensor.data.quat_w.unsqueeze(1).expand(
+        -1, num_points, -1
+    ).reshape(-1, 4)
+    rel_hits_b_z = math_utils.quat_apply_inverse(
+        quat_w_expanded, rel_hits_w_flat
+    ).view(batch_size, num_points, 3)[:, :, 2]
 
-    rel_hits_b_flat = math_utils.quat_apply_inverse(quat_w_expanded, rel_hits_w_flat)
-    rel_hits_b = rel_hits_b_flat.view(batch_size, num_points, 3)
-
-    dists = torch.norm(rel_hits_b, dim=-1)
-    is_close = dists < float(env.cfg.wall_close_threshold)
-    is_obstacle = rel_hits_b[:, :, 2] > float(env.cfg.wall_height_threshold)
+    is_obstacle = rel_hits_b_z > float(env.cfg.wall_height_threshold)
     valid_wall_hits = is_close & is_obstacle
 
-    wall_score = torch.sum((float(env.cfg.wall_close_threshold) - dists) * valid_wall_hits.float(), dim=1)
+    wall_score = torch.sum((threshold - dists) * valid_wall_hits.float(), dim=1)
     wall_score = wall_score / float(num_points)
     return (wall_score * wall_score * torch.sign(wall_score)) * env.step_dt
 
