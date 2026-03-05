@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import torch
 
-import isaaclab.utils.math as math_utils
-
 
 def _mode_scale(env, reward_name: str) -> torch.Tensor:
     """Per-env reward scale factor based on current mode.
@@ -167,23 +165,21 @@ def wall_proximity_penalty(env) -> torch.Tensor:
     lidar_hits_w = torch.nan_to_num(lidar_hits_w, nan=1e6, posinf=1e6, neginf=-1e6)
     rel_hits_w = lidar_hits_w - lidar_sensor.data.pos_w.unsqueeze(1)
 
-    # Distance is rotation-invariant — compute before body frame transform
+    # Distance is rotation-invariant
     dists = torch.norm(rel_hits_w, dim=-1)
 
     threshold = float(env.cfg.wall_close_threshold)
     is_close = dists < threshold
 
-    # Body frame Z filter: distinguishes walls from sloped ground
-    batch_size, num_points, _ = rel_hits_w.shape
-    rel_hits_w_flat = rel_hits_w.view(-1, 3)
-    quat_w_expanded = lidar_sensor.data.quat_w.unsqueeze(1).expand(
-        -1, num_points, -1
-    ).reshape(-1, 4)
-    rel_hits_b_z = math_utils.quat_apply_inverse(
-        quat_w_expanded, rel_hits_w_flat
-    ).view(batch_size, num_points, 3)[:, :, 2]
+    # Height map ground truth: compare hit Z against terrain surface height.
+    # Hits on terrain (hills/terraces) have delta_z ≈ 0 → not walls.
+    # Hits on obstacles (cubes/spheres) have delta_z >> 0 → walls.
+    batch_size, num_points, _ = lidar_hits_w.shape
+    hit_xy = lidar_hits_w[..., :2].reshape(-1, 2)
+    terrain_z = env.terrain_data.height_at_xy(hit_xy).reshape(batch_size, num_points)
+    height_above_terrain = lidar_hits_w[..., 2] - terrain_z
+    is_obstacle = height_above_terrain > float(env.cfg.wall_obstacle_height)
 
-    is_obstacle = rel_hits_b_z > float(env.cfg.wall_height_threshold)
     valid_wall_hits = is_close & is_obstacle
 
     wall_score = torch.sum((threshold - dists) * valid_wall_hits.float(), dim=1)
