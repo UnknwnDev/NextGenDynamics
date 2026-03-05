@@ -24,7 +24,10 @@ class ObstacleType:
 class Obstacle:
     type: str
     path: None | str = None
-    scale_range: tuple[float, float] = (0.5, 2.0)
+    # (min, max) for uniform scale, or ((min_x,max_x),(min_y,max_y),(min_z,max_z)) for per-axis.
+    scale_range: tuple = (0.5, 2.0)
+    # (min, max) degrees for all axes, or ((min_x,max_x),(min_y,max_y),(min_z,max_z)) for per-axis.
+    rotation_range: tuple = (0.0, 0.0)
     num_instances: int = 100
     radius: float | None = None
 
@@ -69,14 +72,12 @@ class CustomTerrainCfg:
 
     # Obstacles (optional).
     obstacles: tuple[Obstacle, ...] | None = (
-        Obstacle(type=ObstacleType.CUBE, scale_range=(0.5, 4.0), num_instances=50, radius=0.5),
+        Obstacle(type=ObstacleType.CUBE, scale_range=((0.5, 9.0), (0.5, 9.0), (0.5, 4.0)), rotation_range = (-45, 45), num_instances=50, radius=0.5),
         Obstacle(type=ObstacleType.SPHERE, scale_range=(0.5, 5.0), num_instances=50, radius=0.5),
     )
 
     # Terraced zones (optional, manual placement).
-    terraced_zones: tuple[TerracedZone, ...] | None = (
-        TerracedZone(center=(30.0, 30.0), size=(20.0, 20.0), heading_deg=15.0, step_height=0.25),
-    )
+    terraced_zones: tuple[TerracedZone, ...] | None = None
 
     # Random terraced zone generation.
     random_terraced_count: int = 10

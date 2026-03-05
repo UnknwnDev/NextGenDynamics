@@ -47,12 +47,13 @@ class TerrainData:
         points = mesh.GetPointsAttr().Get()
         points_np = np.array(points, dtype=np.float32, copy=True)
         rows, cols = terrain_cfg.grid_size
-        if points_np.shape[0] != rows * cols:
+        if points_np.shape[0] < rows * cols:
             raise RuntimeError(
-                f"Terrain mesh points count mismatch. Expected {rows * cols}, got {points_np.shape[0]} ({usd_path})."
+                f"Terrain mesh has too few points. Need at least {rows * cols}, got {points_np.shape[0]} ({usd_path})."
             )
 
-        height_map_np = points_np[:, 2].reshape(rows, cols)
+        # First rows*cols points are the height-map grid; extras are obstacle verts.
+        height_map_np = points_np[: rows * cols, 2].reshape(rows, cols)
         self.height_map = torch.from_numpy(height_map_np).to(device=device, dtype=torch.float32)
 
         self.device = device
