@@ -183,12 +183,12 @@ def wall_proximity_penalty(env) -> torch.Tensor:
     valid_wall_hits = is_close & is_obstacle
 
     if env.debug_plot.enabled:
-        valid_lidar = dists[0] < threshold *3
+        valid_lidar = dists[0] < threshold *stillness_penalty
         env.debug_plot.scatter("Wall Detection", rel_hits_w[0, valid_lidar, :2], is_obstacle[0, valid_lidar].float())
 
     proximity = (threshold - dists) / threshold
     wall_score = torch.sum(proximity * valid_wall_hits.float(), dim=1) / valid_wall_hits.float().sum(dim=1).clamp(min=1.0)
-    return wall_score * env.step_dt
+    return wall_score * wall_score * env.step_dt
 
 
 def patrol_exploration_reward(env) -> torch.Tensor:
@@ -217,6 +217,6 @@ def stillness_penalty(env) -> torch.Tensor:
     robot = env.scene.articulations["robot"]
     vel = robot.data.root_lin_vel_w[:, :2]
     speed = torch.linalg.norm(vel, dim=1)
-    min_speed = 0.1  # m/s threshold
+    min_speed = 0.2  # m/s threshold
     penalty = torch.clamp(min_speed - speed, min=0.0) / min_speed
     return penalty * env.step_dt
