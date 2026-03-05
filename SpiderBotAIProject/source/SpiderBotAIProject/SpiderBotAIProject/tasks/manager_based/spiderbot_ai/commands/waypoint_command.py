@@ -219,9 +219,19 @@ class WaypointCommandTerm(CommandTerm):
         noise = (torch.rand(n, device=self.device) * 2.0 - 1.0) * wander_rate * dt
         self._chase_heading[chase_ids] += noise
 
+        # 1.5. Evasion steering — bias heading away from robot.
+        evasion_weight = float(cfg.chase_target_evasion_weight)
+        cur_xy = self.desired_pos[chase_ids, :2]
+        robot_xy = self.robot.data.root_pos_w[chase_ids, :2]
+        away_vec = cur_xy - robot_xy
+        away_angle = torch.atan2(away_vec[:, 1], away_vec[:, 0])
+        current_heading = self._chase_heading[chase_ids]
+        angle_diff = away_angle - current_heading
+        angle_diff = (angle_diff + torch.pi) % (2 * torch.pi) - torch.pi
+        self._chase_heading[chase_ids] += evasion_weight * angle_diff
+
         # 2. Boundary repulsion steering.
         margin = float(cfg.chase_target_boundary_margin)
-        cur_xy = self.desired_pos[chase_ids, :2]
         x_min = -td.size_x / 2.0 + float(cfg.spawn_padding)
         x_max = td.size_x / 2.0 - float(cfg.spawn_padding)
         y_min = -td.size_y / 2.0 + float(cfg.spawn_padding)

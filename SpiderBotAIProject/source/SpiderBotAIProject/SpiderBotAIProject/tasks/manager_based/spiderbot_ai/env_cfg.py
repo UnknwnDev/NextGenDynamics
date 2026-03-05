@@ -237,6 +237,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     chase_target_wander_rate = 1.5        # max heading change (rad/s)
     chase_target_boundary_margin = 3.0    # start steering away from boundary (m)
     chase_success_tolerance = 1.0
+    chase_target_evasion_weight = 0.5  # heading bias toward away-from-robot direction (0=none, 1=full)
 
     # Mode-dependent reward scales: reward_name -> (WAYPOINT, PATROL, CHASE)
     # Rewards not listed default to (1.0, 1.0, 1.0) — always active at full weight.
