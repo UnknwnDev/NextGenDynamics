@@ -72,8 +72,8 @@ class CustomTerrainCfg:
 
     # Obstacles (optional).
     obstacles: tuple[Obstacle, ...] | None = (
-        Obstacle(type=ObstacleType.CUBE, scale_range=((0.5, 9.0), (0.5, 9.0), (0.5, 4.0)), rotation_range = (-45, 45), num_instances=100, radius=0.5),
-        Obstacle(type=ObstacleType.SPHERE, scale_range=(0.5, 5.0), num_instances=100, radius=0.5),
+        Obstacle(type=ObstacleType.CUBE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), rotation_range = (-45, 45), num_instances=100, radius=0.5),
+        Obstacle(type=ObstacleType.SPHERE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), num_instances=100, radius=0.5),
     )
 
     # Terraced zones (optional, manual placement).

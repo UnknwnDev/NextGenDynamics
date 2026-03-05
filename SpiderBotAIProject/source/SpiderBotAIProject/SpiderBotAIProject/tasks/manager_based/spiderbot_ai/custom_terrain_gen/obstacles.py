@@ -57,7 +57,20 @@ def obstacle_radii(
     n = scales.shape[0]
 
     if obstacle_type == ObstacleType.SPHERE:
-        return 0.5 * np.max(scales[:, :2], axis=1)
+        if rotations is None:
+            # Axis-aligned ellipsoid: XY radius = max semi-axis in XY
+            return 0.5 * np.max(scales[:, :2], axis=1)
+        # Rotated ellipsoid: conservative bound = half of largest scale axis
+        # (bounding sphere of the ellipsoid projected onto XY)
+        radii = np.empty(n, dtype=np.float64)
+        for i in range(n):
+            semi = 0.5 * scales[i]  # semi-axes (a, b, c)
+            R = euler_to_rotation_matrix(rotations[i])
+            # Max XY extent: ||R[:2,:] @ diag(semi)||_op = sqrt(max eig of M @ M^T)
+            M = R[:2, :] * semi  # (2, 3) broadcast
+            MtM = M @ M.T  # (2, 2)
+            radii[i] = np.sqrt(np.max(np.linalg.eigvalsh(MtM)))
+        return radii.astype(np.float32)
 
     if obstacle_type == ObstacleType.CUBE:
         if rotations is None:
