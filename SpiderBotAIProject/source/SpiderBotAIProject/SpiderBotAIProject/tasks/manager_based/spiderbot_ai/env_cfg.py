@@ -143,7 +143,7 @@ class RewardsCfg:
     undesired_contacts = RewTerm(func=mdp.undesired_contacts_penalty, weight=-2.0e2)
     feet_contact_force = RewTerm(func=mdp.feet_contact_force_penalty, weight=-1.0e-7)
     flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0e2)
-    wall_proximity = RewTerm(func=mdp.wall_proximity_penalty, weight=-5.0e2)
+    wall_proximity = RewTerm(func=mdp.wall_proximity_penalty, weight=-5.0e3)
 
     patrol_exploration = RewTerm(func=mdp.patrol_exploration_reward, weight=2.0)
     patrol_boundary = RewTerm(func=mdp.patrol_boundary_penalty, weight=-0.25)
