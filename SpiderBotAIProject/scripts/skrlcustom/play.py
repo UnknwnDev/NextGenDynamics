@@ -112,6 +112,59 @@ else:
     agent_cfg_entry_point = args_cli.agent
 
 
+def _init_debug_subplots(registry, artists_out):
+    """Build subplots from registered debug plots (called once). Returns the new figure."""
+    import matplotlib.pyplot as plt
+
+    plots = registry.plots
+    n = len(plots)
+    cols = min(n, 3)
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
+    import numpy as np
+
+    axes = np.array(axes).flatten() if n > 1 else np.array([axes])
+    for idx, (name, entry) in enumerate(plots.items()):
+        ax = axes[idx]
+        ax.set_title(name)
+        if entry[0] == "image":
+            data = entry[1].detach().cpu().numpy()
+            im = ax.imshow(data, origin="lower", cmap="viridis")
+            fig.colorbar(im, ax=ax, fraction=0.046)
+            artists_out[name] = ("image", im)
+        elif entry[0] == "scatter":
+            sc = ax.scatter([], [], c=[], s=1, cmap="RdYlGn_r", vmin=0, vmax=1)
+            ax.set_aspect("equal")
+            artists_out[name] = ("scatter", sc, ax)
+    for i in range(n, len(axes)):
+        axes[i].set_visible(False)
+    fig.tight_layout()
+    return fig
+
+
+def _update_debug_plots(fig, registry, artists):
+    """Update existing debug plot artists with new data."""
+    import numpy as np
+
+    for name, entry in registry.plots.items():
+        if name not in artists:
+            continue
+        art = artists[name]
+        if art[0] == "image":
+            data = entry[1].detach().cpu().numpy()
+            art[1].set_data(data)
+            art[1].set_clim(data.min(), data.max())
+        elif art[0] == "scatter":
+            xy = entry[1].detach().cpu().numpy()
+            c = entry[2].detach().cpu().numpy()
+            art[1].set_offsets(np.column_stack([xy[:, 0], xy[:, 1]]))
+            art[1].set_array(c)
+            art[2].set_xlim(xy[:, 0].min() - 0.5, xy[:, 0].max() + 0.5)
+            art[2].set_ylim(xy[:, 1].min() - 0.5, xy[:, 1].max() + 0.5)
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()
+
+
 @hydra_task_config(args_cli.task, agent_cfg_entry_point)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, experiment_cfg: dict):
     """Play with custom skrl agent."""
@@ -226,36 +279,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
 
     # -- debug plot setup --------------------------------------------------
     debug_fig = None
+    debug_artists = {}
+    _debug_ready = False
     if args_cli.debug_plot:
         import matplotlib.pyplot as plt
-        import numpy as np
 
         plt.ion()
         base_env = env.unwrapped
-        debug_plots = base_env.debug_plot.plots
-        n_plots = len(debug_plots)
-        if n_plots > 0:
-            cols = min(n_plots, 3)
-            rows = (n_plots + cols - 1) // cols
-            debug_fig, debug_axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
-            debug_axes = np.array(debug_axes).flatten() if n_plots > 1 else np.array([debug_axes])
-            debug_artists = {}
-            for idx, (name, entry) in enumerate(debug_plots.items()):
-                ax = debug_axes[idx]
-                ax.set_title(name)
-                if entry[0] == "image":
-                    data = entry[1].detach().cpu().numpy()
-                    im = ax.imshow(data, origin="lower", cmap="viridis")
-                    debug_fig.colorbar(im, ax=ax, fraction=0.046)
-                    debug_artists[name] = ("image", im)
-                elif entry[0] == "scatter":
-                    sc = ax.scatter([], [], c=[], s=1, cmap="RdYlGn_r", vmin=0, vmax=1)
-                    ax.set_aspect("equal")
-                    debug_artists[name] = ("scatter", sc, ax)
-            for i in range(n_plots, len(debug_axes)):
-                debug_axes[i].set_visible(False)
-            plt.tight_layout()
-            plt.pause(0.01)
+        base_env.debug_plot.enabled = True
 
     while simulation_app.is_running():
         start_time = time.time()
@@ -279,24 +310,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
                             s[:, finished[:, 0]] = 0
 
         # -- debug plot update ------------------------------------------
-        if debug_fig is not None:
-            for name, entry in base_env.debug_plot.plots.items():
-                if name not in debug_artists:
-                    continue
-                art = debug_artists[name]
-                if art[0] == "image":
-                    data = entry[1].detach().cpu().numpy()
-                    art[1].set_data(data)
-                    art[1].set_clim(data.min(), data.max())
-                elif art[0] == "scatter":
-                    xy = entry[1].detach().cpu().numpy()
-                    c = entry[2].detach().cpu().numpy()
-                    art[1].set_offsets(xy)
-                    art[1].set_array(c)
-                    art[2].set_xlim(xy[:, 0].min() - 0.5, xy[:, 0].max() + 0.5)
-                    art[2].set_ylim(xy[:, 1].min() - 0.5, xy[:, 1].max() + 0.5)
-            debug_fig.canvas.draw_idle()
-            debug_fig.canvas.flush_events()
+        if args_cli.debug_plot:
+            if not _debug_ready and len(base_env.debug_plot.plots) > 0:
+                _debug_ready = True
+                debug_fig = _init_debug_subplots(base_env.debug_plot, debug_artists)
+            if _debug_ready:
+                _update_debug_plots(debug_fig, base_env.debug_plot, debug_artists)
 
         if args_cli.video:
             timestep += 1

@@ -182,10 +182,12 @@ def _build_obstacle_meshes(
             raise ValueError(f"Unknown obstacle type: {obstacle.type}")
 
         for i in range(int(positions.shape[0])):
-            # Start from base mesh
+            # Start from base mesh — per-axis scale for both types.
+            # Cube base is [-0.5,0.5]³ (side=1), so scale maps directly.
+            # Sphere base has radius=1.0 (diameter=2), so multiply by 0.5
+            # to match cube scale units (scale=2 → 2m extent on that axis).
             if obstacle.type == ObstacleType.SPHERE:
-                r = 0.5 * max(float(scales[i, 0]), float(scales[i, 1]))
-                verts = base_verts * r  # uniform radius scale
+                verts = base_verts * (0.5 * scales[i])  # ellipsoid
             else:
                 verts = base_verts * scales[i]  # per-axis scale
 

@@ -182,8 +182,9 @@ def wall_proximity_penalty(env) -> torch.Tensor:
 
     valid_wall_hits = is_close & is_obstacle
 
-    # Register for debug plotting (first env only, near-zero cost)
-    env.debug_plot.scatter("Wall Detection", rel_hits_w[0, :, :2], valid_wall_hits[0].float())
+    if env.debug_plot.enabled:
+        valid_lidar = dists[0] < threshold *3
+        env.debug_plot.scatter("Wall Detection", rel_hits_w[0, valid_lidar, :2], is_obstacle[0, valid_lidar].float())
 
     proximity = (threshold - dists) / threshold
     wall_score = torch.sum(proximity * valid_wall_hits.float(), dim=1) / valid_wall_hits.float().sum(dim=1).clamp(min=1.0)
