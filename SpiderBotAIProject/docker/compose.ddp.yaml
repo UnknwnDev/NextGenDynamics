@@ -16,7 +16,7 @@ services:
       - TORCH_NCCL_ENABLE_MONITORING=${TORCH_NCCL_ENABLE_MONITORING:-1}
       - NCCL_ASYNC_ERROR_HANDLING=${NCCL_ASYNC_ERROR_HANDLING:-1}
       # --- DDP memory ---
-      - NUM_ENVS=${NUM_ENVS:-256}
+      - NUM_ENVS=${NUM_ENVS:-480}
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
     command:
       [
