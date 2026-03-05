@@ -70,6 +70,9 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
         )
         self._base_contact_time = torch.zeros(self.num_envs, device=self.device)
 
+        # EMA-smoothed XY velocity (used by stillness_penalty to reject oscillation)
+        self._smoothed_vel_xy = torch.zeros(self.num_envs, 2, device=self.device)
+
         # Debug plot registry (used by --debug_plot in play.py)
         self.debug_plot = DebugPlotRegistry()
 
@@ -195,6 +198,11 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             :, self.robot_idx.contact_sensor_base_ids
         ].squeeze(-1)
 
+        # 6. Smoothed velocity for stillness penalty (EMA)
+        vel_xy = robot.data.root_lin_vel_w[:, :2]
+        alpha = 0.05
+        self._smoothed_vel_xy[:] = alpha * vel_xy + (1.0 - alpha) * self._smoothed_vel_xy
+
     # ------------------------------------------------------------------
     # Reset
     # ------------------------------------------------------------------
@@ -211,6 +219,7 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
         self._map_output.staleness_peak_value[env_ids] = 0.0
         self._is_contact[env_ids] = 0.0
         self._base_contact_time[env_ids] = 0.0
+        self._smoothed_vel_xy[env_ids] = 0.0
 
         # Parent reset: scene.reset → spawn event (writes spawn_pos_w) → command_manager.reset
         super()._reset_idx(env_ids)

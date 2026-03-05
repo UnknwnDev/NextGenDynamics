@@ -183,7 +183,7 @@ def wall_proximity_penalty(env) -> torch.Tensor:
     valid_wall_hits = is_close & is_obstacle
 
     if env.debug_plot.enabled:
-        valid_lidar = dists[0] < threshold *stillness_penalty
+        valid_lidar = dists[0] < threshold * 3
         env.debug_plot.scatter("Wall Detection", rel_hits_w[0, valid_lidar, :2], is_obstacle[0, valid_lidar].float())
 
     proximity = (threshold - dists) / threshold
@@ -213,10 +213,8 @@ def chase_proximity_reward(env) -> torch.Tensor:
 
 
 def stillness_penalty(env) -> torch.Tensor:
-    """Penalize low horizontal speed with a smooth ramp below min_speed."""
-    robot = env.scene.articulations["robot"]
-    vel = robot.data.root_lin_vel_w[:, :2]
-    speed = torch.linalg.norm(vel, dim=1)
-    min_speed = 0.2  # m/s threshold
+    """Penalize low effective horizontal speed (EMA-filtered to reject oscillation)."""
+    speed = torch.linalg.norm(env._smoothed_vel_xy, dim=1)
+    min_speed = 0.25  # m/s threshold
     penalty = torch.clamp(min_speed - speed, min=0.0) / min_speed
     return penalty * env.step_dt
