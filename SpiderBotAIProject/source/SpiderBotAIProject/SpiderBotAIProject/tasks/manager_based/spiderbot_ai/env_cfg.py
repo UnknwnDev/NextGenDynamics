@@ -194,7 +194,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     undesired_contact_body_names = "body|leg_upper_.*|leg_middle_.*|leg_lower_.*"
 
     # Commands / reset
-    spawn_mode: str = "waypoint"  # "waypoint" = all WAYPOINT; "mixed" = evenly distribute 3 modes
+    spawn_mode: str = "mixed"  # "waypoint" = all WAYPOINT; "mixed" = evenly distribute 3 modes
     spawn_z_offset = 1.0
     spawn_yaw_range = 0.5
 
