@@ -43,6 +43,7 @@ parser.add_argument(
     default=False,
     help="Enable command debug visualization markers (spawn points + waypoints).",
 )
+parser.add_argument("--debug_plot", action="store_true", default=False, help="Show BEV + wall debug plots via matplotlib.")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -222,6 +223,40 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
 
     obs, _ = env.reset()
     timestep = 0
+
+    # -- debug plot setup --------------------------------------------------
+    debug_fig = None
+    if args_cli.debug_plot:
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        plt.ion()
+        base_env = env.unwrapped
+        debug_plots = base_env.debug_plot.plots
+        n_plots = len(debug_plots)
+        if n_plots > 0:
+            cols = min(n_plots, 3)
+            rows = (n_plots + cols - 1) // cols
+            debug_fig, debug_axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
+            debug_axes = np.array(debug_axes).flatten() if n_plots > 1 else np.array([debug_axes])
+            debug_artists = {}
+            for idx, (name, entry) in enumerate(debug_plots.items()):
+                ax = debug_axes[idx]
+                ax.set_title(name)
+                if entry[0] == "image":
+                    data = entry[1].detach().cpu().numpy()
+                    im = ax.imshow(data, origin="lower", cmap="viridis")
+                    debug_fig.colorbar(im, ax=ax, fraction=0.046)
+                    debug_artists[name] = ("image", im)
+                elif entry[0] == "scatter":
+                    sc = ax.scatter([], [], c=[], s=1, cmap="RdYlGn_r", vmin=0, vmax=1)
+                    ax.set_aspect("equal")
+                    debug_artists[name] = ("scatter", sc, ax)
+            for i in range(n_plots, len(debug_axes)):
+                debug_axes[i].set_visible(False)
+            plt.tight_layout()
+            plt.pause(0.01)
+
     while simulation_app.is_running():
         start_time = time.time()
 
@@ -242,6 +277,26 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, expe
                     if agent.policy is not agent.value:
                         for s in agent._rnn_initial_states["value"]:
                             s[:, finished[:, 0]] = 0
+
+        # -- debug plot update ------------------------------------------
+        if debug_fig is not None:
+            for name, entry in base_env.debug_plot.plots.items():
+                if name not in debug_artists:
+                    continue
+                art = debug_artists[name]
+                if art[0] == "image":
+                    data = entry[1].detach().cpu().numpy()
+                    art[1].set_data(data)
+                    art[1].set_clim(data.min(), data.max())
+                elif art[0] == "scatter":
+                    xy = entry[1].detach().cpu().numpy()
+                    c = entry[2].detach().cpu().numpy()
+                    art[1].set_offsets(xy)
+                    art[1].set_array(c)
+                    art[2].set_xlim(xy[:, 0].min() - 0.5, xy[:, 0].max() + 0.5)
+                    art[2].set_ylim(xy[:, 1].min() - 0.5, xy[:, 1].max() + 0.5)
+            debug_fig.canvas.draw_idle()
+            debug_fig.canvas.flush_events()
 
         if args_cli.video:
             timestep += 1

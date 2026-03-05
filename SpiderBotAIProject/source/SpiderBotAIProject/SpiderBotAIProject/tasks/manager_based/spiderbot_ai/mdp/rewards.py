@@ -182,9 +182,12 @@ def wall_proximity_penalty(env) -> torch.Tensor:
 
     valid_wall_hits = is_close & is_obstacle
 
-    wall_score = torch.sum((threshold - dists) * valid_wall_hits.float(), dim=1)
-    wall_score = wall_score / float(num_points)
-    return (wall_score * wall_score * torch.sign(wall_score)) * env.step_dt
+    # Register for debug plotting (first env only, near-zero cost)
+    env.debug_plot.scatter("Wall Detection", rel_hits_w[0, :, :2], valid_wall_hits[0].float())
+
+    proximity = (threshold - dists) / threshold
+    wall_score = torch.sum(proximity * valid_wall_hits.float(), dim=1) / valid_wall_hits.float().sum(dim=1).clamp(min=1.0)
+    return wall_score * env.step_dt
 
 
 def patrol_exploration_reward(env) -> torch.Tensor:

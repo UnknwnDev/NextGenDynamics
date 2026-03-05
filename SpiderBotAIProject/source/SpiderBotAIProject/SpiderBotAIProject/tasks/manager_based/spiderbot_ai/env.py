@@ -13,6 +13,7 @@ from isaaclab.envs import ManagerBasedRLEnv
 
 from isaaclab.envs.common import VecEnvStepReturn
 
+from .environment.debug_plot import DebugPlotRegistry
 from .environment.map_manager import MapManager, MapManagerOutput
 from .environment.robot_indices import RobotIndices
 from .environment.terrain_data import TerrainData
@@ -68,6 +69,9 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             dtype=torch.float32,
         )
         self._base_contact_time = torch.zeros(self.num_envs, device=self.device)
+
+        # Debug plot registry (used by --debug_plot in play.py)
+        self.debug_plot = DebugPlotRegistry()
 
         # Create ObservationManager, TerminationManager, RewardManager etc.
         super().load_managers()
@@ -172,6 +176,11 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
             robot_yaw_w=robot.data.heading_w.unsqueeze(-1),
             dt=self.step_dt,
         )
+
+        # 2b. Register BEV channels for debug plotting (views — zero cost)
+        self.debug_plot.image("BEV max_height", self._map_output.bev_data[0, 0])
+        self.debug_plot.image("BEV mean_height", self._map_output.bev_data[0, 1])
+        self.debug_plot.image("BEV density", self._map_output.bev_data[0, 2])
 
         # 3. Waypoint state machine (legitimate command — target reached, timeouts, patrol target)
         self.command_manager.get_term("waypoint").ensure_updated()
