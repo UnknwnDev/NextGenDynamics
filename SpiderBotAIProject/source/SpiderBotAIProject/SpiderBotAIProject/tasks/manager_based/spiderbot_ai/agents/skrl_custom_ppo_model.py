@@ -9,6 +9,7 @@ from collections.abc import Mapping
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
 from skrl.utils.spaces.torch import unflatten_tensorized_space
@@ -52,6 +53,25 @@ def _unwrap_policy_observation_space(observation_space):
     return current
 
 
+class ResBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, stride=1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_ch, out_ch, 3, stride=stride, padding=1)
+        self.gn1 = nn.GroupNorm(min(4, out_ch), out_ch)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
+        self.gn2 = nn.GroupNorm(min(4, out_ch), out_ch)
+        if in_ch != out_ch or stride != 1:
+            self.skip = nn.Conv2d(in_ch, out_ch, 1, stride=stride)
+        else:
+            self.skip = nn.Identity()
+
+    def forward(self, x):
+        identity = self.skip(x)
+        out = F.relu(self.gn1(self.conv1(x)))
+        out = self.gn2(self.conv2(out))
+        return F.relu(out + identity)
+
+
 class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
     def __init__(self, observation_space, action_space, device, num_envs, init_log_std=0.0):
         observation_space = _unwrap_policy_observation_space(observation_space)
@@ -87,64 +107,38 @@ class SharedRecurrentModel(GaussianMixin, DeterministicMixin, Model):
             nn.ReLU(),
         )
 
-        # Height encoder CNN (64x64 -> 128)
+        # Height encoder (1x64x64 -> 64)
         self.height_encoder = nn.Sequential(
-            nn.Conv2d(1, 2, kernel_size=3, stride=2, padding=1),  # 64 -> 32
-            nn.ReLU(),
-            nn.Conv2d(2, 4, kernel_size=3, stride=2, padding=1),  # 32 -> 16
-            nn.ReLU(),
-            nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 16 -> 8
-            nn.GroupNorm(2, 8),
-            nn.ReLU(),
-            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 8 -> 4
-            nn.GroupNorm(4, 16),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
-            nn.GroupNorm(4, 32),
-            nn.ReLU(),
-            nn.Flatten(),  # 32 * 2 * 2 = 128
+            ResBlock(1, 16, stride=2),   # 64 -> 32
+            ResBlock(16, 32, stride=2),  # 32 -> 16
+            ResBlock(32, 32, stride=2),  # 16 -> 8
+            ResBlock(32, 32, stride=2),  # 8 -> 4
+            ResBlock(32, 32, stride=2),  # 4 -> 2
+            nn.Flatten(),               # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
             nn.ReLU(),
         )
 
-        # BEV encoder CNN (3x64x64 -> 128)
+        # BEV encoder (3x64x64 -> 64)
         self.bev_encoder = nn.Sequential(
-            nn.Conv2d(3, 4, kernel_size=3, stride=2, padding=1),  # 64 -> 32
-            nn.ReLU(),
-            nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 32 -> 16
-            nn.GroupNorm(2, 8),
-            nn.ReLU(),
-            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 16 -> 8
-            nn.GroupNorm(4, 16),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 8 -> 4
-            nn.GroupNorm(4, 32),
-            nn.ReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 4 -> 2
-            nn.GroupNorm(4, 32),
-            nn.ReLU(),
-            nn.Flatten(),  # 32 * 2 * 2 = 128
+            ResBlock(3, 16, stride=2),   # 64 -> 32
+            ResBlock(16, 32, stride=2),  # 32 -> 16
+            ResBlock(32, 32, stride=2),  # 16 -> 8
+            ResBlock(32, 32, stride=2),  # 8 -> 4
+            ResBlock(32, 32, stride=2),  # 4 -> 2
+            nn.Flatten(),               # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
             nn.ReLU(),
         )
 
-        # Nav encoder CNN ((1, 33, 33) -> 128)
+        # Nav encoder (1x33x33 -> 64)
         self.nav_encoder = nn.Sequential(
-            nn.Conv2d(1, 4, kernel_size=3, stride=2, padding=1),  # 33 -> 17
-            nn.ReLU(),
-            nn.Conv2d(4, 8, kernel_size=3, stride=2, padding=1),  # 17 -> 9
-            nn.GroupNorm(2, 8),
-            nn.ReLU(),
-            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=1),  # 9 -> 5
-            nn.GroupNorm(4, 16),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),  # 5 -> 3
-            nn.GroupNorm(4, 32),
-            nn.ReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),  # 3 -> 2
-            nn.GroupNorm(4, 32),
-            nn.ReLU(),
-            nn.Flatten(),  # 32 * 2 * 2 = 128
+            ResBlock(1, 16, stride=2),   # 33 -> 17
+            ResBlock(16, 32, stride=2),  # 17 -> 9
+            ResBlock(32, 32, stride=2),  # 9 -> 5
+            ResBlock(32, 32, stride=2),  # 5 -> 3
+            ResBlock(32, 32, stride=2),  # 3 -> 2
+            nn.Flatten(),               # 32 * 2 * 2 = 128
             nn.Linear(128, 64),
             nn.ReLU(),
         )
