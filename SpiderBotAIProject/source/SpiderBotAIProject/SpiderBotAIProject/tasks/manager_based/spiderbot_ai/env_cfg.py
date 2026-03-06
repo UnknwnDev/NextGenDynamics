@@ -229,7 +229,7 @@ class SpiderBotAIEnvCfg(ManagerBasedRLEnvCfg):
     min_time_out = 1.0
 
     # Reward shaping parameters (scales live in RewardsCfg weights).
-    wall_close_threshold = 2.0
+    wall_close_threshold = 1.0
     wall_obstacle_height = 0.15  # min height above terrain surface to count as obstacle (m)
 
     # Chase mode settings
