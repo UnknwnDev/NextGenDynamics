@@ -127,7 +127,7 @@ class ObservationsCfg:
 class RewardsCfg:
     """Reward terms (each computes inline from sensors/robot data)."""
     life_time = RewTerm(func=mdp.life_time_reward, weight=0.005)
-    progress = RewTerm(func=mdp.progress_reward, weight=1.0e4)
+    progress = RewTerm(func=mdp.progress_reward, weight=2.0e4)
     velocity_alignment = RewTerm(func=mdp.velocity_alignment_reward, weight=1.0e2)
     reach_target = RewTerm(func=mdp.reach_target_reward, weight=1.0e3)
     death_penalty = RewTerm(func=mdp.death_penalty, weight=-5.0e2)
@@ -143,7 +143,7 @@ class RewardsCfg:
     undesired_contacts = RewTerm(func=mdp.undesired_contacts_penalty, weight=-2.0e2)
     feet_contact_force = RewTerm(func=mdp.feet_contact_force_penalty, weight=-1.0e-7)
     flat_orientation = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0e2)
-    wall_proximity = RewTerm(func=mdp.wall_proximity_penalty, weight=-5.0e2)
+    wall_proximity = RewTerm(func=mdp.wall_proximity_penalty, weight=-5.0e3)
 
     patrol_exploration = RewTerm(func=mdp.patrol_exploration_reward, weight=2.0e2)
     patrol_boundary = RewTerm(func=mdp.patrol_boundary_penalty, weight=-2.5)
