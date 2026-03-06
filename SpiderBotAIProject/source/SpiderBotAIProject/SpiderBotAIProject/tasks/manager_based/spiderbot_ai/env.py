@@ -200,7 +200,7 @@ class SpiderBotAIEnv(ManagerBasedRLEnv):
 
         # 6. Smoothed velocity for stillness penalty (EMA)
         vel_xy = robot.data.root_lin_vel_w[:, :2]
-        alpha = 0.05
+        alpha = 0.1
         self._smoothed_vel_xy[:] = alpha * vel_xy + (1.0 - alpha) * self._smoothed_vel_xy
 
     # ------------------------------------------------------------------
