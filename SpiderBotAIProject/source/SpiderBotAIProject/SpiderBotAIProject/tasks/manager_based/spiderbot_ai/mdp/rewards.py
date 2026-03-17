@@ -49,7 +49,9 @@ def progress_reward(env) -> torch.Tensor:
     progress = delta * ((waypoint.targets_reached * 0.25) + 1.0)
     progress = torch.sign(progress) * torch.log1p(progress.abs())
 
-    return progress * _mode_scale(env, "progress") * env.step_dt
+    speed = torch.linalg.norm(robot.data.root_lin_vel_w[:, :2], dim=1)
+    speed_gate = (speed > 0.4).float()
+    return progress * speed_gate * _mode_scale(env, "progress") * env.step_dt
 
 
 def velocity_alignment_reward(env) -> torch.Tensor:
@@ -92,9 +94,9 @@ def jump_penalty(env) -> torch.Tensor:
     current_air_times = contact_sensor.data.current_air_time[:, env.robot_idx.contact_sensor_feet_ids]
     air_feet_per_agent = (current_air_times > 0).float().sum(dim=1)
     total_foot_num = float(len(env.robot_idx.contact_sensor_feet_ids))
-    normalized_air_feet = air_feet_per_agent / total_foot_num
-    normalized_air_feet[normalized_air_feet < 1e-7] = 2.0 / total_foot_num
-    return (normalized_air_feet ** 3) * env.step_dt
+    fraction = air_feet_per_agent / total_foot_num
+    excess = torch.clamp(fraction - 0.75, min=0.0)
+    return (excess ** 2) * env.step_dt
 
 
 def body_angular_velocity_penalty(env) -> torch.Tensor:
@@ -110,7 +112,9 @@ def speed_reward(env) -> torch.Tensor:
     v_w = robot.data.body_link_lin_vel_w[:, env.robot_idx.body_ids]
     dot = (v_w * up_dir).sum(dim=-1, keepdim=True)
     v_horizontal = v_w - dot * up_dir
-    return v_horizontal.norm(dim=-1).squeeze(1) * _mode_scale(env, "speed") * env.step_dt
+    speed = v_horizontal.norm(dim=-1).squeeze(1)
+    reward = 1.0 - torch.exp(-speed / 0.5)
+    return reward * _mode_scale(env, "speed") * env.step_dt
 
 
 def body_vertical_acceleration_penalty(env) -> torch.Tensor:
