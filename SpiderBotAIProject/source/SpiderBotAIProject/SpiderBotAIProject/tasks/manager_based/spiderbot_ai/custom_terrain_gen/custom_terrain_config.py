@@ -71,11 +71,12 @@ class CustomTerrainCfg:
     hill_noise_octaves: int = 32
 
     # Obstacles (optional).
-    obstacles: tuple[Obstacle, ...] | None = (
-        Obstacle(type=ObstacleType.CUBE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), rotation_range = (-45, 45), num_instances=100, radius=0.5),
-        Obstacle(type=ObstacleType.SPHERE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), num_instances=100, radius=0.5),
-    )
-
+    # obstacles: tuple[Obstacle, ...] | None = (
+    #     Obstacle(type=ObstacleType.CUBE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), rotation_range = (-45, 45), num_instances=100, radius=0.5),
+    #     Obstacle(type=ObstacleType.SPHERE, scale_range=((0.5, 9.0), (0.5, 9.0), (4.0, 8.0)), num_instances=100, radius=0.5),
+    # )
+    obstacles: tuple[Obstacle, ...] | None = None
+    
     # Terraced zones (optional, manual placement).
     terraced_zones: tuple[TerracedZone, ...] | None = None
 
