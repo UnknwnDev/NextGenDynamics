@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Intermediate", "Intermediate", "{3848253F-E549-169C-B568-6D0398027E98}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{2C79E76A-AF64-664A-6C98-4CDB1D56B9B3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildRulesProjects", "BuildRulesProjects", "{FA252560-843A-68E8-7ECB-A4F8EFAF896D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSP400ModuleRules", "Intermediate\Build\BuildRulesProjects\CSP400ModuleRules\CSP400ModuleRules.csproj", "{806DBD1F-8F59-34B4-33C7-E61D97330179}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{806DBD1F-8F59-34B4-33C7-E61D97330179}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{806DBD1F-8F59-34B4-33C7-E61D97330179}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{806DBD1F-8F59-34B4-33C7-E61D97330179}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{806DBD1F-8F59-34B4-33C7-E61D97330179}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2C79E76A-AF64-664A-6C98-4CDB1D56B9B3} = {3848253F-E549-169C-B568-6D0398027E98}
+		{FA252560-843A-68E8-7ECB-A4F8EFAF896D} = {2C79E76A-AF64-664A-6C98-4CDB1D56B9B3}
+		{806DBD1F-8F59-34B4-33C7-E61D97330179} = {FA252560-843A-68E8-7ECB-A4F8EFAF896D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {111D9E89-E1B5-444B-BF57-66A07E0A21E2}
+	EndGlobalSection
+EndGlobal

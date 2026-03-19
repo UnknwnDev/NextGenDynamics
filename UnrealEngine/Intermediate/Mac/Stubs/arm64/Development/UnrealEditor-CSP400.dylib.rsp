@@ -1,0 +1,21 @@
+-fdiagnostics-absolute-paths
+-fdiagnostics-color
+-L/usr/lib/swift
+-arch arm64
+-isysroot "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+-target arm64-apple-macos14.00
+-dead_strip
+-dynamiclib
+-headerpad_max_install_names
+-current_version 4753.73.91
+-compatibility_version 5.7.0
+-rpath @loader_path/ -rpath @executable_path/
+-undefined dynamic_lookup
+-Wl,-no_fixup_chains
+-install_name "@rpath/UnrealEditor-CSP400.dylib"
+"/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Build/Mac/arm64/UnrealEditor/Development/CSP400/Module.CSP400.gen.cpp.o"
+"/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Build/Mac/arm64/UnrealEditor/Development/CSP400/Spiderbot_V2.cpp.o"
+"/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Build/Mac/arm64/UnrealEditor/Development/CSP400/CSP400.cpp.o"
+"/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Build/Mac/arm64/UnrealEditor/Development/CSP400/ONNX_Integration.cpp.o"
+"/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Build/Mac/arm64/UnrealEditor/Development/CSP400/PerModuleInline.gen.cpp.o"
+-o "/Users/unknwn.dev/Documents/Unreal Projects/CSP400/Intermediate/Mac/Stubs/arm64/Development/UnrealEditor-CSP400.dylib"

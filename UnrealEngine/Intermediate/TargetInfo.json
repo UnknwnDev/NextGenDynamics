@@ -1,0 +1,14 @@
+{
+	"Targets": [
+		{
+			"Name": "CSP400",
+			"Path": "../Source/CSP400.Target.cs",
+			"Type": "Game"
+		},
+		{
+			"Name": "CSP400Editor",
+			"Path": "../Source/CSP400Editor.Target.cs",
+			"Type": "Editor"
+		}
+	]
+}
