@@ -1,3 +1,0 @@
-recursive-include SpiderBotAIProject/assets *.usd
-recursive-include SpiderBotAIProject/tasks *.yaml
-recursive-include SpiderBotAIProject/tasks *.yml
