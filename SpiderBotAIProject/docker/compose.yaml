@@ -1,0 +1,32 @@
+services:
+  train:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      network: host
+    image: spiderbotai-isaaclab-headless:2.3.2
+    gpus: all
+    network_mode: host
+    entrypoint: ["/workspace/isaaclab/isaaclab.sh"]
+    working_dir: /workspace/SpiderBotAIProject
+    environment:
+      - ACCEPT_EULA=Y
+      - PRIVACY_CONSENT=Y
+      - DISPLAY=
+      - PYTHONUNBUFFERED=1
+      - HYDRA_FULL_ERROR=1
+      - NUM_ENVS=${NUM_ENVS:-}
+    volumes:
+      - ${HOME}/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
+      - ${HOME}/.cache/ov:/root/.cache/ov:rw
+      - ${HOME}/.cache/pip:/root/.cache/pip:rw
+      - ${HOME}/.cache/nvidia/GLCache:/root/.cache/nvidia/GLCache:rw
+      - ${HOME}/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw
+      - ${HOME}/docker/isaac-sim/logs:/root/.nvidia-omniverse/logs:rw
+      - ${HOME}/docker/isaac-sim/carblogs:/isaac-sim/kit/logs/Kit/Isaac-Sim:rw
+      - ${HOME}/docker/isaac-sim/data:/root/.local/share/ov/data:rw
+      - ${HOME}/docker/isaac-sim/documents:/root/Documents:rw
+      - ../checkpoints:/workspace/SpiderBotAIProject/checkpoints:rw
+      - ../logs:/workspace/SpiderBotAIProject/logs:rw
+      - ../outputs:/workspace/SpiderBotAIProject/outputs:rw
+    command: ["-p", "scripts/skrlcustom/train.py", "--task", "SpiderBotAIProject-v0", "--headless"]

@@ -1,0 +1,6 @@
+# Deprecated.
+#
+# SpiderBotAIProject is skrlcustom-only. Do not use `skrl_cfg_entry_point`.
+# Use: `skrl_custom_cfg_entry_point` -> `skrl_custom_ppo_cfg.yaml`.
+
+deprecated: true

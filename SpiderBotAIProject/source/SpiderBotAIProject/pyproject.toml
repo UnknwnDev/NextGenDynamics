@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools", "wheel", "toml"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SpiderBotAIProject"
+version = "0.1.0"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["SpiderBotAIProject*"]
+exclude = ["config*", "docs*", "*.egg-info*"]

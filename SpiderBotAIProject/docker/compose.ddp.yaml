@@ -1,0 +1,35 @@
+services:
+  train:
+    shm_size: "2g"
+    environment:
+      # --- NCCL transport ---
+      - NCCL_P2P_DISABLE=${NCCL_P2P_DISABLE:-1}
+      - NCCL_IB_DISABLE=${NCCL_IB_DISABLE:-1}
+      - NCCL_SHM_DISABLE=${NCCL_SHM_DISABLE:-0}
+      - NCCL_CUMEM_HOST_ENABLE=${NCCL_CUMEM_HOST_ENABLE:-0}
+      - NCCL_SOCKET_NTHREADS=${NCCL_SOCKET_NTHREADS:-4}
+      - NCCL_NSOCKS_PERTHREAD=${NCCL_NSOCKS_PERTHREAD:-4}
+      - NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-4194304}
+      # --- NCCL diagnostics ---
+      - NCCL_DEBUG=${NCCL_DEBUG:-WARN}
+      - TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=${TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC:-600}
+      - TORCH_NCCL_ENABLE_MONITORING=${TORCH_NCCL_ENABLE_MONITORING:-1}
+      - NCCL_ASYNC_ERROR_HANDLING=${NCCL_ASYNC_ERROR_HANDLING:-1}
+      # --- DDP memory ---
+      - NUM_ENVS=${NUM_ENVS:-256}
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    command:
+      [
+        "-p",
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        "--nproc_per_node=2",
+        "scripts/skrlcustom/train.py",
+        "--task",
+        "SpiderBotAIProject-v0",
+        "--headless",
+        "--distributed",
+        # "--checkpoint",
+        # "checkpoints/base_temp.pt",
+      ]

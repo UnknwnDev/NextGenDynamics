@@ -1,0 +1,35 @@
+services:
+  isaac-lab:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    image: nvcr.io/nvidia/isaac-lab:2.2.0
+    container_name: isaac-lab-dev-container
+    command: sleep infinity
+    tty: true                 # Corresponds to the '-t' flag in 'docker run'
+    stdin_open: true          # Corresponds to the '-i' flag in 'docker run'
+    network_mode: "host"      # Corresponds to '--network=host' for direct network access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - ACCEPT_EULA=Y
+      - PRIVACY_CONSENT=Y       # Added from the 'docker run' command
+      - DISPLAY=$${env:DISPLAY} # Correct way to pass DISPLAY in compose
+    volumes:
+      - ..:/workspace/isaaclab/source/ChargeProject:rw
+      # X11 authentication for GUI forwarding
+      #- ~/.Xauthority:/root/.Xauthority:rw
+      # Cache and data mounts for performance and persistence
+      - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
+      - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw
+      - ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw
+      - ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw
+      - ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw
+      - ~/docker/isaac-sim/logs:/root/.nvidia-omniverse/logs:rw
+      - ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw
+      - ~/docker/isaac-sim/documents:/root/Documents:rw

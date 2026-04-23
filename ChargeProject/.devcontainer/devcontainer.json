@@ -1,0 +1,19 @@
+{
+  "name": "Isaac Lab - ChargeProject",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "isaac-lab",
+  "workspaceFolder": "/workspace/isaaclab",
+
+  "initializeCommand": "xhost +",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "postCreateCommand": "echo 'Container is ready! Use the Run and Debug panel to start your task.'",
+  "shutdownAction": "stopCompose"
+}
